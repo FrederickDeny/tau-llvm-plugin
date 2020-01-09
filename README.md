@@ -2,8 +2,7 @@
 
 ## Building
 
-This pass (in `lib/Instrument.cpp`) should be built against a system
-install of LLVM, and is only tested against 6.0 at the moment.
+This pass (in `lib/Instrument.cpp`) should be built against the install of LLVM you want to use it in. The `master` branch was only tested against 6.0 and 7.0 at the moment. For 8.0, use the branch `llvm-8.x`, and for 9.0, use the branch `llvm-9.x`.
 
 ### Independently
 
@@ -15,6 +14,8 @@ cd build
 cmake ..
 cmake --build .
 ```
+
+Don't forget to set the `$LLVM_DIR`, `$CC` and `$CXX` environment variables.
 
 ## Usage
 
