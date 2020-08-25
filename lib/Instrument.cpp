@@ -122,7 +122,11 @@ static StringRef normalize_name(StringRef mangled_name) {
    * \param ctx The LLVMContext
    * \param mdl The Module in which the function will be used
    */
+#if( LLVM_VERSION_MAJOR <= 8 )
   static Constant *getVoidFunc(StringRef funcname, LLVMContext &context, Module *module) {
+#else
+    static FunctionCallee getVoidFunc(StringRef funcname, LLVMContext &context, Module *module) {
+#endif // LLVM_VERSION_MAJOR <= 8
 
     // Void return type
     Type *retTy = Type::getVoidTy(context);
@@ -259,9 +263,15 @@ static StringRef normalize_name(StringRef mangled_name) {
       // Declare and get handles to the runtime profiling functions
       auto &context = func.getContext();
       auto *module = func.getParent();
+#if( LLVM_VERSION_MAJOR <= 8 )
       Constant
         *onCallFunc = getVoidFunc(TauStartFunc, context, module),
         *onRetFunc = getVoidFunc(TauStopFunc, context, module);
+#else
+      FunctionCallee
+        onCallFunc = getVoidFunc(TauStartFunc, context, module),
+        onRetFunc = getVoidFunc(TauStopFunc, context, module);
+#endif // LLVM_VERSION_MAJOR <= 8
 
       bool mutated = false;
       for (auto &pair : calls) {
