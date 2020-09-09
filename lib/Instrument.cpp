@@ -123,9 +123,9 @@ static StringRef normalize_name(StringRef mangled_name) {
    * \param mdl The Module in which the function will be used
    */
 #if( LLVM_VERSION_MAJOR <= 8 )
-  static Constant *getVoidFunc(StringRef funcname, LLVMContext &context, Module *module) {
+static Constant *getVoidFunc(StringRef funcname, LLVMContext &context, Module *module) {
 #else
-    static FunctionCallee getVoidFunc(StringRef funcname, LLVMContext &context, Module *module) {
+static FunctionCallee getVoidFunc(StringRef funcname, LLVMContext &context, Module *module) {
 #endif // LLVM_VERSION_MAJOR <= 8
 
     // Void return type
@@ -139,13 +139,13 @@ static StringRef normalize_name(StringRef mangled_name) {
     // to do with variadic functions?
     FunctionType *funcTy = FunctionType::get(retTy, paramTys, false);
     return module->getOrInsertFunction(funcname, funcTy);
-  }
+}
 
 
   /*!
    * The instrumentation pass.
    */
-  struct Instrument : public FunctionPass {
+struct Instrument : public FunctionPass {
 
     using CallAndName = std::pair<CallInst *, StringRef>;
 
@@ -234,7 +234,10 @@ static StringRef normalize_name(StringRef mangled_name) {
           calleeName = callee->getName();
         }
 
-        if(funcsOfInterest.count(calleeName) > 0 || regexFits(calleeName)) {
+	std::string parent( ( call->getFunction()->getName() + "/" + calleeName.data() ).str() );
+	StringRef calleeAndParent( parent );
+
+        if(funcsOfInterest.count(calleeName) > 0 || regexFits(calleeName) || funcsOfInterest.count(calleeAndParent) > 0) {
           calls.push_back({call, calleeName});
         }
       }
@@ -283,6 +286,11 @@ static StringRef normalize_name(StringRef mangled_name) {
         // as an argument to runtime functions)
         Value *strArg = builder.CreateGlobalStringPtr(calleeName);
         SmallVector<Value *, 1> args{strArg};
+
+	errs() << calleeName << "\n";
+	if( NULL != op->getParent() && NULL != op->getParent()->getParent() ) {
+	  errs() << "Caller: " << op->getFunction()->getName() << "\n";
+	}
 
         // Before the CallInst
         builder.CreateCall(onCallFunc, args);
