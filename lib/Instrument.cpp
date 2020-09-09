@@ -287,11 +287,6 @@ struct Instrument : public FunctionPass {
         Value *strArg = builder.CreateGlobalStringPtr(calleeName);
         SmallVector<Value *, 1> args{strArg};
 
-	errs() << calleeName << "\n";
-	if( NULL != op->getParent() && NULL != op->getParent()->getParent() ) {
-	  errs() << "Caller: " << op->getFunction()->getName() << "\n";
-	}
-
         // Before the CallInst
         builder.CreateCall(onCallFunc, args);
 
