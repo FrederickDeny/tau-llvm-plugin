@@ -39,6 +39,7 @@
 
 #define TAU_BEGIN_EXCLUDE_LIST_NAME "BEGIN_EXCLUDE_LIST"
 #define TAU_END_EXCLUDE_LIST_NAME   "END_EXCLUDE_LIST"
+#define TAU_REGEX_STAR              '#'
 /*
   TODO: finish exclude
 */
@@ -157,6 +158,8 @@ struct Instrument : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     StringSet<> funcsOfInterest;
     StringSet<> funcsExcl;
+    StringSet<> funcsOfInterestRegex;
+    StringSet<> funcsExclRegex;
 
     // basic ==> POSIX regular expression
     std::regex rex{TauRegex,
@@ -188,7 +191,11 @@ struct Instrument : public FunctionPass {
                       break;
                   }
                   errs() << "Exclude function " << funcName << "\n";
-                  funcsExcl.insert( funcName );
+                  if( ! funcName.find( TAU_REGEX_STAR ) ) {
+                      funcsExcl.insert( funcName );
+                  } else {
+                      funcsExclRegex.insert( funcName );
+                  }
               }
               
               if( rc ){
@@ -199,7 +206,12 @@ struct Instrument : public FunctionPass {
               if( funcName.find_first_not_of(' ') != std::string::npos ) {
                   /* Exclude whitespace-only lines */
                   errs() << "registered '" << funcName << "' for profiling\n";
-                  funcsOfInterest.insert(funcName);
+                  if( ! funcName.find( TAU_REGEX_STAR ) ) {
+                      /* Put regular expressions in a specific list */
+                      funcsOfInterest.insert( funcName );
+                  } else {
+                      funcsOfInterestRegex.insert( funcName );
+                  }
               }
           }
       }
@@ -265,17 +277,40 @@ struct Instrument : public FunctionPass {
         StringRef calleeAndParent( parent );
 
         if(funcsOfInterest.count(calleeName) > 0 || regexFits(calleeName) || funcsOfInterest.count(calleeAndParent) > 0) {
-          calls.push_back({call, calleeName});
+            calls.push_back({call, calleeName});
+        }
+        if( regexFits( calleeName ) ) { /* tmp (debug) */
+            errs() << calleeName << " matched\n";
         }
       }
     }
 
     // TODO: Doc
+    /*! 
+     * This function tries to determine if the current function name (parameter name)
+     * matches a regular expression. Regular expressions can be passed either 
+     * on the command-line (historical behavior) or in the input file. The latter
+     * use a specific wildcard.
+     */
     bool regexFits(const StringRef & name) {
-      bool match = false, imatch = false;
-      if(!TauRegex.empty()) match = std::regex_search(name.str(), rex);
-      if(!TauIRegex.empty()) imatch = std::regex_search(name.str(), irex);
-      return match || imatch;
+        /* Regex coming from the command-line */
+        bool match = false, imatch = false;
+        if(!TauRegex.empty()) match = std::regex_search(name.str(), rex);
+        if(!TauIRegex.empty()) imatch = std::regex_search(name.str(), irex);
+
+        if( match || imatch ) return true;
+        
+        /* Regex coming from the input file, using '#' as the wildcard */
+        for( auto& r : funcsOfInterestRegex ){
+            auto rc = std::search( name.begin(), name.end(),
+                                   r.getKey().begin(), r.getKey().end(),
+                                   []( char txt, char pattern ) {
+                                       return pattern == TAU_REGEX_STAR || pattern == txt;
+                                   } );
+            if ( name.end() != rc ) return true;
+        }
+        
+        return false;
     }
 
 
