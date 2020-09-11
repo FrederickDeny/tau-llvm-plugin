@@ -37,6 +37,11 @@
 // Other passes do this, so I assume the macro is useful somewhere
 #define DEBUG_TYPE "tau-profile"
 
+#define TAU_BEGIN_EXCLUDE_LIST_NAME "BEGIN_EXCLUDE_LIST"
+#define TAU_END_EXCLUDE_LIST_NAME   "END_EXCLUDE_LIST"
+/*
+  TODO: finish exclude
+*/
 
 using namespace llvm;
 
@@ -151,6 +156,7 @@ struct Instrument : public FunctionPass {
 
     static char ID; // Pass identification, replacement for typeid
     StringSet<> funcsOfInterest;
+    StringSet<> funcsExcl;
 
     // basic ==> POSIX regular expression
     std::regex rex{TauRegex,
@@ -172,9 +178,30 @@ struct Instrument : public FunctionPass {
      */
     void loadFunctionsFromFile(std::ifstream & file) {
       std::string funcName;
+      bool rc = true;
       while(std::getline(file, funcName)) {
-        errs() << "registered '" << funcName << "' for profiling\n";
-        funcsOfInterest.insert(funcName);
+          
+          if( 0 == funcName.compare( TAU_BEGIN_EXCLUDE_LIST_NAME ) ){
+              while( std::getline( file, funcName ) ){
+                  if( 0 == funcName.compare( TAU_END_EXCLUDE_LIST_NAME ) ){
+                      rc = false;
+                      break;
+                  }
+                  errs() << "Exclude function " << funcName << "\n";
+                  funcsExcl.insert( funcName );
+              }
+              
+              if( rc ){
+                  errs() << "Error while reading the exclude list in the input file. Did you close it with " << TAU_END_EXCLUDE_LIST_NAME << "?\n";
+              }
+            
+          } else {
+              if( funcName.find_first_not_of(' ') != std::string::npos ) {
+                  /* Exclude whitespace-only lines */
+                  errs() << "registered '" << funcName << "' for profiling\n";
+                  funcsOfInterest.insert(funcName);
+              }
+          }
       }
     }
 
@@ -234,8 +261,8 @@ struct Instrument : public FunctionPass {
           calleeName = callee->getName();
         }
 
-	std::string parent( ( call->getFunction()->getName() + "/" + calleeName.data() ).str() );
-	StringRef calleeAndParent( parent );
+        std::string parent( ( call->getFunction()->getName() + "/" + calleeName.data() ).str() );
+        StringRef calleeAndParent( parent );
 
         if(funcsOfInterest.count(calleeName) > 0 || regexFits(calleeName) || funcsOfInterest.count(calleeAndParent) > 0) {
           calls.push_back({call, calleeName});
