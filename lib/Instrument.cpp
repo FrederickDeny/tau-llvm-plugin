@@ -289,12 +289,6 @@ struct Instrument : public FunctionPass {
                   ) ) {
             calls.push_back({call, calleeName});
         }
-        if( regexFits( calleeName, funcsOfInterestRegex ) ) { /* tmp (debug) */
-            errs() << calleeName << " matched\n";
-        }
-        if( regexFits( calleeName,  funcsExclRegex) ) { /* tmp (debug) */
-            errs() << calleeName << " (excluded) matched\n";
-        }
       }
     }
 
