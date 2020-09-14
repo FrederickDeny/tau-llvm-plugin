@@ -2,7 +2,7 @@
 
 ## Building
 
-This pass (in `lib/Instrument.cpp`) should be built against the install of LLVM you want to use it in. The `master` branch was only tested against 6.0 and 7.0 at the moment. For 8.0, use the branch `llvm-8.x`, and for 9.0, use the branch `llvm-9.x`.
+This pass (in `lib/Instrument.cpp`) should be built against the install of LLVM you want to use it in. The `master` branch was tested against 6.0, 7.0, 8.0, 9.0, 10.0, 11.0 and the current master branch (12.0).
 
 ### Independently
 
@@ -16,6 +16,9 @@ cmake --build .
 ```
 
 Don't forget to set the `$LLVM_DIR`, `$CC` and `$CXX` environment variables.
+The configuration of TAU that will be used is set by the environment
+variable TAU_MAKEFILE. The compilers (`$CC` and `$CXX`) must be the same as
+the ones used to build the LLVM installation you are building against.
 
 ## Usage
 
@@ -58,6 +61,10 @@ tests.
   - `example.cc` is a Hello World C++ program with some OO features to
     see what kinds of calls are visible after lowering to LLVM IR.
 
+An example using several source files is also given in the `sandbox/mm`
+directory, and a more complex program is given in the `sandbox/hh`
+directory.
+
 The following instructions assume `TAU_Profiling.so` and
 `Tau_Profiling_CXX.so` have been built against the system installed
 LLVM. If this is not the case, replace invocations of `clang` and
@@ -75,10 +82,10 @@ To compile and link the example C program with the plugin and TAU
 profiling:
 
 ``` bash
-clang -fplugin=path/to/TAU_Profiling.so \
-  -mllvm -tau-input-file=./functions_C.txt \
-  -ldl -L path/to/TAU/x86_64/lib/shared -l TAU \
-  -Wl,-rpath,path/to/TAU/x86_64/lib/shared \
+clang -fplugin=/path/to/TAU_Profiling.so              \
+  -mllvm -tau-input-file=./functions_C.txt            \
+  -ldl -L/path/to/TAU/and/archi/$TAU_MAKEFILE -l TAU  \
+  -Wl,-rpath,/path/to/TAU/and/archi/$TAU_MAKEFILE     \
   example.c
 ```
 
@@ -88,15 +95,100 @@ dynamic linking also appears to be necessary.
 The process is similar for the example C++ program:
 
 ``` bash
-clang -fplugin=path/to/TAU_Profiling_CXX.so \
-  -mllvm -tau-input-file=./functions_CXX.txt \
-  -ldl -L path/to/TAU/x86_64/lib/shared -l TAU \
-  -Wl,-rpath,path/to/TAU/x86_64/lib/shared \
+clang -fplugin=/path/to/TAU_Profiling_CXX.so        \
+  -mllvm -tau-input-file=./functions_CXX.txt        \
+  -ldl -L/path/to/TAU/and/archi/$TAU_MAKEFILE -lTAU \
+  -Wl,-rpath,/path/to/TAU/and/archi/$TAU_MAKEFILE   \
   example.cc
 ```
 
+In the `sandbox/mm` directory, an example of a C++ program using several
+source files is given and can be compiled using:
+
+``` bash
+clang -O3 -g -fplugin=/path/to/TAU_Profiling_CXX.so   \ 
+  -mllvm -tau-input-file=./functions_CXX_mm.txt -ldl  \
+  -L/path/to/TAU/and/archi/lib/$TAU_MAKEFILE -lTAU    \
+  -Wl,-rpath,/path/to/TAU/and/archi/lib/$TAU_MAKEFILE \
+  matmult.cpp matmult_initialize.cpp -o mm_cpp
+```
 Running the resulting executable in either case should produce a
 `profile.*` file.
+
+## Input file syntax
+
+The input file contains function names, one on each line. For C programs,
+use the function name; for C++ programs, use the whole prototype.
+
+### Functions to instrument
+
+Examples are given in `sandbox` directory.
+
+``` bash
+$ cat sandbox/functions_C.txt 
+hw
+$ cat sandbox/functions_CXX.txt 
+main()
+A::foo()
+```
+
+The input file for C++ programs must provide the arguments' datatypes. 
+
+``` bash
+$ cat sandbox/mm/functions_CXX_mm.txt 
+initialize(double**, int, int)
+compute_interchange(double**, double**, double**, int, int, int)
+```
+
+### Regular expressions
+
+The module provides two ways of passing function names as regular expressions.
+
+#### As command line arguments
+
+The options `-tau-regex` and `-tau-iregex` can be used to pass case-sensitive
+and case-insensitive ECMAScript Regular Expressions on the command line.
+For example:
+
+``` bash
+clang -fplugin=/path/to/TAU_Profiling.so -mllvm -tau-regex="apply*"  \
+  -ldl -L/path/to/TAU/and/archi/$TAU_MAKEFILE -lTAU                  \
+  -Wl,-rpath,/path/to/TAU/and/archi/$TAU_MAKEFILE                    \
+  -O3 -g ./householder.c -o householder -lm
+```
+
+#### In the input file
+
+In the input file, regular expressions use the Kleene star (\#) as
+the wildcard, since the star (*) already means something in function names.
+For instance, using the example code given in `sandbox/hh`, we can instrument
+all the functions starting with `apply` (ie, `applyQ` and `applyR`) using:
+
+``` 
+apply#
+```
+
+### Exclude functions from the instrumentation
+
+Functions can be explicitely excluded from the instrumentation. The function names
+are given between the tag `BEGIN_EXCLUDE_LIST` and the tag `END_EXCLUDE_LIST`.
+For instance, using the example code given in `sandbox/hh`, we can exclude the
+function `check` using:
+
+``` 
+BEGIN_EXCLUDE_LIST
+check
+END_EXCLUDE_LIST
+```
+
+Regular expressions work on excluded functions too. For instance, we can exclude
+all the function whose names start with `check` using:
+
+``` 
+BEGIN_EXCLUDE_LIST
+check#
+END_EXCLUDE_LIST
+```
 
 ## <span class="todo TODO">TODO</span> 
 
