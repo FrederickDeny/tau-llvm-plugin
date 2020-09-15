@@ -1,2 +1,4 @@
+BEGIN_INCLUDE_LIST
 main()
 A::foo()
+END_INCLUDE_LIST

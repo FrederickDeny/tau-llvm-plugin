@@ -126,18 +126,24 @@ Examples are given in `sandbox` directory.
 
 ``` bash
 $ cat sandbox/functions_C.txt 
+BEGIN_INCLUDE_LIST
 hw
+END_INCLUDE_LIST
 $ cat sandbox/functions_CXX.txt 
+BEGIN_INCLUDE_LIST
 main()
 A::foo()
+END_INCLUDE_LIST
 ```
 
 The input file for C++ programs must provide the arguments' datatypes. 
 
 ``` bash
 $ cat sandbox/mm/functions_CXX_mm.txt 
+BEGIN_INCLUDE_LIST
 initialize(double**, int, int)
 compute_interchange(double**, double**, double**, int, int, int)
+END_INCLUDE_LIST
 ```
 
 ### Regular expressions

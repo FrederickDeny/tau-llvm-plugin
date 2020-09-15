@@ -39,6 +39,8 @@
 
 #define TAU_BEGIN_EXCLUDE_LIST_NAME "BEGIN_EXCLUDE_LIST"
 #define TAU_END_EXCLUDE_LIST_NAME   "END_EXCLUDE_LIST"
+#define TAU_BEGIN_INCLUDE_LIST_NAME "BEGIN_INCLUDE_LIST"
+#define TAU_END_INCLUDE_LIST_NAME   "END_INCLUDE_LIST"
 #define TAU_REGEX_STAR              '#'
 /*
   TODO: finish exclude
@@ -183,44 +185,67 @@ struct Instrument : public FunctionPass {
       std::string funcName;
       bool rc = true;
       while(std::getline(file, funcName)) {
-          
-          if( 0 == funcName.compare( TAU_BEGIN_EXCLUDE_LIST_NAME ) ){
+
+          if( 0 == funcName.compare( TAU_BEGIN_INCLUDE_LIST_NAME ) ){
               while( std::getline( file, funcName ) ){
-                  if( 0 == funcName.compare( TAU_END_EXCLUDE_LIST_NAME ) ){
-                      rc = false;
+                  if( funcName.find_first_not_of(' ') != std::string::npos ) {
+                      /* Exclude whitespace-only lines */
+                      
+                      if( 0 == funcName.compare( TAU_END_INCLUDE_LIST_NAME ) ){
+                          rc = false;
                       break;
+                      }
+                      errs() << "Instrument function " << funcName;
+                      if( funcName.end() == std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ){
+                          funcsOfInterest.insert( funcName );
+                      } else {
+                          errs() << " (regex)";
+                          funcsOfInterestRegex.insert( funcName );
+                      }
+                      errs() << "\n";
                   }
-                  errs() << "Exclude function " << funcName;
-                  if( funcName.end() == std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ){
-                      funcsExcl.insert( funcName );
-                  } else {
-                      errs() << " (regex)";
-                      funcsExclRegex.insert( funcName );
-                  }
-                  errs() << "\n";
               }
               
               if( rc ){
-                  errs() << "Error while reading the exclude list in the input file. Did you close it with " << TAU_END_EXCLUDE_LIST_NAME << "?\n";
+                  errs() << "Error while reading the instrumentation list in the input file. Did you close it with " << TAU_END_INCLUDE_LIST_NAME << "?\n";
               }
-            
+              
           } else {
-              if( funcName.find_first_not_of(' ') != std::string::npos ) {
-                  /* Exclude whitespace-only lines */
-                  errs() << "registered '" << funcName << "' for profiling";
-                  if( funcName.end() == std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ){
-                      /* Put regular expressions in a specific list */
-                      funcsOfInterest.insert( funcName );
-                  } else {
-                      errs() << " (regex)";
-                      funcsOfInterestRegex.insert( funcName );
+              
+              if( 0 == funcName.compare( TAU_BEGIN_EXCLUDE_LIST_NAME ) ){
+                  while( std::getline( file, funcName ) ){
+                      if( funcName.find_first_not_of(' ') != std::string::npos ) {
+                          /* Exclude whitespace-only lines */
+                          
+                          if( 0 == funcName.compare( TAU_END_EXCLUDE_LIST_NAME ) ){
+                              rc = false;
+                              break;
+                          }
+                          errs() << "Exclude function " << funcName;
+                          if( funcName.end() == std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ){
+                              funcsExcl.insert( funcName );
+                          } else {
+                              errs() << " (regex)";
+                              funcsExclRegex.insert( funcName );
+                          }
+                          errs() << "\n";
+                      }
                   }
-                  errs() << "\n";
+                  
+                  if( rc ){
+                      errs() << "Error while reading the exclude list in the input file. Did you close it with " << TAU_END_EXCLUDE_LIST_NAME << "?\n";
+                  }
+
+              } else {
+                  errs() << "Wrong syntax: the lists must be between ";
+                  errs() << TAU_BEGIN_INCLUDE_LIST_NAME << " and " << TAU_END_INCLUDE_LIST_NAME;
+                  errs() << " for the list of functions to instrument and ";
+                  errs() << TAU_BEGIN_EXCLUDE_LIST_NAME << " and " << TAU_END_EXCLUDE_LIST_NAME;
+                  errs() << " for the list of functions to exclude.\n";
               }
           }
       }
     }
-
 
     /*!
      *  The FunctionPass interface method, called on each function produced from
@@ -287,6 +312,7 @@ struct Instrument : public FunctionPass {
             && !( funcsExcl.count( calleeName )
                   || regexFits( calleeName, funcsExclRegex )
                   ) ) {
+            errs() << "Instrument " << calleeName << "\n";
             calls.push_back({call, calleeName});
         }
       }
