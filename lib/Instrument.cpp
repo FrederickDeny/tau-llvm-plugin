@@ -37,11 +37,17 @@
 // Other passes do this, so I assume the macro is useful somewhere
 #define DEBUG_TYPE "tau-profile"
 
-#define TAU_BEGIN_EXCLUDE_LIST_NAME "BEGIN_EXCLUDE_LIST"
-#define TAU_END_EXCLUDE_LIST_NAME   "END_EXCLUDE_LIST"
-#define TAU_BEGIN_INCLUDE_LIST_NAME "BEGIN_INCLUDE_LIST"
-#define TAU_END_INCLUDE_LIST_NAME   "END_INCLUDE_LIST"
+#define TAU_BEGIN_INCLUDE_LIST_NAME      "BEGIN_INCLUDE_LIST"
+#define TAU_END_INCLUDE_LIST_NAME        "END_INCLUDE_LIST"
+#define TAU_BEGIN_EXCLUDE_LIST_NAME      "BEGIN_EXCLUDE_LIST"
+#define TAU_END_EXCLUDE_LIST_NAME        "END_EXCLUDE_LIST"
+#define TAU_BEGIN_FILE_INCLUDE_LIST_NAME "BEGIN_FILE_INCLUDE_LIST"
+#define TAU_END_FILE_INCLUDE_LIST_NAME   "END_FILE_INCLUDE_LIST"
+#define TAU_BEGIN_FILE_EXCLUDE_LIST_NAME "BEGIN_FILE_EXCLUDE_LIST"
+#define TAU_END_FILE_EXCLUDE_LIST_NAME   "END_FILE_EXCLUDE_LIST"
+
 #define TAU_REGEX_STAR              '#'
+
 /*
   TODO: finish exclude
 */
@@ -176,6 +182,41 @@ struct Instrument : public FunctionPass {
       }
     }
 
+  /*! 
+   * Given an open file, a token and two vectors, read what is coming next and 
+   * put it in the vector or its regex counterpart until the token has been
+   * reached.
+   */
+  void readUntilToken( std::ifstream& file, StringSet<>& vec, StringSet<>& vecReg, const char* token ){
+    std::string funcName;
+    bool rc = true;
+
+    while( std::getline( file, funcName ) ){
+      if( funcName.find_first_not_of(' ') != std::string::npos ) {
+	/* Exclude whitespace-only lines */
+       
+	if( 0 == funcName.compare( token ) ){
+	  errs() << "done\n";
+	  return;
+	}
+	errs() << "Instrument function " << funcName;
+	if( funcName.end() == std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ){
+	  vec.insert( funcName );
+	} else {
+	  errs() << " (regex)";
+	  vecReg.insert( funcName );
+	}
+	errs() << "\n";
+      }
+    }
+    
+    if( rc ){
+      errs() << "Error while reading the instrumentation list in the input file. Did you close it with " << token << "?\n";
+    }
+    
+  }
+
+
     /*!
      *  Given an open file, read each line as the name of a function that should
      *  be instrumented.  This modifies the class member funcsOfInterest to hold
@@ -184,66 +225,43 @@ struct Instrument : public FunctionPass {
     void loadFunctionsFromFile(std::ifstream & file) {
       std::string funcName;
       bool rc = true;
+
+      /* This will be necessary as long as we don't have pattern matching in C++ */
+      enum TokenValues { begin_func_include, begin_func_exclude,
+			 begin_file_include, begin_file_exclude };
+      
+      static std::map<std::string, TokenValues> s_mapTokenValues;
+      
+      s_mapTokenValues[ TAU_BEGIN_INCLUDE_LIST_NAME ] = begin_func_include;
+      s_mapTokenValues[ TAU_BEGIN_EXCLUDE_LIST_NAME ] = begin_func_exclude;
+      s_mapTokenValues[ TAU_BEGIN_FILE_INCLUDE_LIST_NAME ] = begin_file_include;
+      s_mapTokenValues[ TAU_BEGIN_FILE_EXCLUDE_LIST_NAME ] = begin_file_exclude;
+      
       while(std::getline(file, funcName)) {
 
-          if( 0 == funcName.compare( TAU_BEGIN_INCLUDE_LIST_NAME ) ){
-              while( std::getline( file, funcName ) ){
-                  if( funcName.find_first_not_of(' ') != std::string::npos ) {
-                      /* Exclude whitespace-only lines */
-                      
-                      if( 0 == funcName.compare( TAU_END_INCLUDE_LIST_NAME ) ){
-                          rc = false;
-                      break;
-                      }
-                      errs() << "Instrument function " << funcName;
-                      if( funcName.end() == std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ){
-                          funcsOfInterest.insert( funcName );
-                      } else {
-                          errs() << " (regex)";
-                          funcsOfInterestRegex.insert( funcName );
-                      }
-                      errs() << "\n";
-                  }
-              }
-              
-              if( rc ){
-                  errs() << "Error while reading the instrumentation list in the input file. Did you close it with " << TAU_END_INCLUDE_LIST_NAME << "?\n";
-              }
-              
-          } else {
-              
-              if( 0 == funcName.compare( TAU_BEGIN_EXCLUDE_LIST_NAME ) ){
-                  while( std::getline( file, funcName ) ){
-                      if( funcName.find_first_not_of(' ') != std::string::npos ) {
-                          /* Exclude whitespace-only lines */
-                          
-                          if( 0 == funcName.compare( TAU_END_EXCLUDE_LIST_NAME ) ){
-                              rc = false;
-                              break;
-                          }
-                          errs() << "Exclude function " << funcName;
-                          if( funcName.end() == std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ){
-                              funcsExcl.insert( funcName );
-                          } else {
-                              errs() << " (regex)";
-                              funcsExclRegex.insert( funcName );
-                          }
-                          errs() << "\n";
-                      }
-                  }
-                  
-                  if( rc ){
-                      errs() << "Error while reading the exclude list in the input file. Did you close it with " << TAU_END_EXCLUDE_LIST_NAME << "?\n";
-                  }
-
-              } else {
-                  errs() << "Wrong syntax: the lists must be between ";
-                  errs() << TAU_BEGIN_INCLUDE_LIST_NAME << " and " << TAU_END_INCLUDE_LIST_NAME;
-                  errs() << " for the list of functions to instrument and ";
-                  errs() << TAU_BEGIN_EXCLUDE_LIST_NAME << " and " << TAU_END_EXCLUDE_LIST_NAME;
-                  errs() << " for the list of functions to exclude.\n";
-              }
-          }
+	if( funcName.find_first_not_of(' ') != std::string::npos ) {
+	  /* Exclude whitespace-only lines */
+	  
+	  switch( s_mapTokenValues[ funcName ]){
+	  case begin_func_include:
+	    errs() << "Included functions: \n";
+	    readUntilToken( file, funcsOfInterest, funcsOfInterestRegex, TAU_END_INCLUDE_LIST_NAME );
+	    break;
+	    
+	  case begin_func_exclude:
+	    errs() << "Excluded functions: \n";
+	    readUntilToken( file, funcsExcl, funcsExclRegex, TAU_END_EXCLUDE_LIST_NAME );
+	    break;
+	    
+	  default:
+	    errs() << "Wrong syntax: the lists must be between ";
+	    errs() << TAU_BEGIN_INCLUDE_LIST_NAME << " and " << TAU_END_INCLUDE_LIST_NAME;
+	    errs() << " for the list of functions to instrument and ";
+	    errs() << TAU_BEGIN_EXCLUDE_LIST_NAME << " and " << TAU_END_EXCLUDE_LIST_NAME;
+	    errs() << " for the list of functions to exclude.\n";
+	    break;
+	  }
+	}
       }
     }
 
@@ -304,6 +322,8 @@ struct Instrument : public FunctionPass {
 
         std::string parent( ( call->getFunction()->getName() + "/" + calleeName.data() ).str() );
         StringRef calleeAndParent( parent );
+	//	errs() << call->getParent()->getParent()->getParent()->getSourceFileName() << '\n';
+
 
         if( ( funcsOfInterest.count( calleeName ) > 0
               || regexFits( calleeName, funcsOfInterestRegex )
