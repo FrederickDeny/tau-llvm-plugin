@@ -168,6 +168,11 @@ struct Instrument : public FunctionPass {
     StringSet<> funcsExcl;
     StringSet<> funcsOfInterestRegex;
     StringSet<> funcsExclRegex;
+  
+    StringSet<> filesIncl;
+    StringSet<> filesExcl;
+    StringSet<> filesInclRegex;
+    StringSet<> filesExclRegex;
 
     // basic ==> POSIX regular expression
     std::regex rex{TauRegex,
@@ -189,6 +194,7 @@ struct Instrument : public FunctionPass {
    */
   void readUntilToken( std::ifstream& file, StringSet<>& vec, StringSet<>& vecReg, const char* token ){
     std::string funcName;
+    std::string s_token( token ); // used by an errs()
     bool rc = true;
 
     while( std::getline( file, funcName ) ){
@@ -196,10 +202,20 @@ struct Instrument : public FunctionPass {
 	/* Exclude whitespace-only lines */
        
 	if( 0 == funcName.compare( token ) ){
-	  errs() << "done\n";
 	  return;
 	}
-	errs() << "Instrument function " << funcName;
+
+	if( s_token.end() == std::find( s_token.begin(), s_token.end(), 'X' ) ){
+	  errs() << "Include";
+	} else {
+	  errs() << "Exclude";
+	}
+	if( s_token.end() == std::find( s_token.begin(), s_token.end(), 'F' ) ){
+	  errs() << " function: " << funcName;
+	} else {
+	  errs() << " file " << funcName;
+	}
+
 	if( funcName.end() == std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ){
 	  vec.insert( funcName );
 	} else {
@@ -252,7 +268,17 @@ struct Instrument : public FunctionPass {
 	    errs() << "Excluded functions: \n";
 	    readUntilToken( file, funcsExcl, funcsExclRegex, TAU_END_EXCLUDE_LIST_NAME );
 	    break;
-	    
+	 
+	  case begin_file_include:
+	    errs() << "Included files: \n";
+	    readUntilToken( file, filesIncl, filesInclRegex, TAU_END_FILE_INCLUDE_LIST_NAME );
+	    break;
+
+	  case begin_file_exclude:
+	    errs() << "Excluded files: \n";
+	    readUntilToken( file, filesExcl, filesExclRegex, TAU_END_FILE_EXCLUDE_LIST_NAME );
+	    break;
+	 
 	  default:
 	    errs() << "Wrong syntax: the lists must be between ";
 	    errs() << TAU_BEGIN_INCLUDE_LIST_NAME << " and " << TAU_END_INCLUDE_LIST_NAME;
@@ -322,22 +348,38 @@ struct Instrument : public FunctionPass {
 
         std::string parent( ( call->getFunction()->getName() + "/" + calleeName.data() ).str() );
         StringRef calleeAndParent( parent );
-	//	errs() << call->getParent()->getParent()->getParent()->getSourceFileName() << '\n';
+	std::string filename = call->getParent()->getParent()->getParent()->getSourceFileName();
 
+	/* This big test was explanded for readability */
+	bool instrumentHere = false;
 
-        if( ( funcsOfInterest.count( calleeName ) > 0
-              || regexFits( calleeName, funcsOfInterestRegex )
-              || funcsOfInterest.count(calleeAndParent) > 0
-              )
-            && !( funcsExcl.count( calleeName )
-                  || regexFits( calleeName, funcsExclRegex )
-                  ) ) {
-            errs() << "Instrument " << calleeName << "\n";
-            calls.push_back({call, calleeName});
-        }
+	/* Are we including or excluding some files? */
+	if( (filesIncl.size() + filesInclRegex.size() + filesExcl.size() + filesExclRegex.size() == 0 ) ){
+	  instrumentHere = true;
+	} else {
+	  /* Yes: are we in a file where we are instrumenting? */
+	  if( ( filesIncl.count( filename ) > 0 
+		|| regexFits( filename, filesInclRegex ) )
+	      && !( filesExcl.count( filename )
+		    || regexFits( filename, filesExclRegex ) ) ){
+	    instrumentHere = true;
+	  }
+	}
+	if( instrumentHere
+	    &&
+	    ( funcsOfInterest.count( calleeName ) > 0
+	      || regexFits ( calleeName, funcsOfInterestRegex )
+	      || funcsOfInterest.count(calleeAndParent) > 0
+	      )
+	    && !( funcsExcl.count( calleeName )
+		  || regexFits( calleeName, funcsExclRegex )
+		  ) ) {
+	  errs() << "Instrument " << calleeName << "\n";
+	  calls.push_back({call, calleeName});
+	}
       }
     }
-
+  
     /*! 
      * This function tries to determine if the current function name (parameter name)
      * matches a regular expression. Regular expressions can be passed either 
