@@ -178,8 +178,8 @@ apply#
 
 Functions can be explicitely excluded from the instrumentation. The function names
 are given between the tag `BEGIN_EXCLUDE_LIST` and the tag `END_EXCLUDE_LIST`.
-For instance, using the example code given in `sandbox/hh`, we can exclude the
-function `check` using:
+For instance, using the example code given in `sandbox/hh`, we can exclude the function 
+`check` using:
 
 ``` 
 BEGIN_EXCLUDE_LIST
@@ -194,6 +194,22 @@ all the function whose names start with `check` using:
 BEGIN_EXCLUDE_LIST
 check#
 END_EXCLUDE_LIST
+```
+
+### Include or exclude files from the instrumentation
+
+Similarly, some files can be included or excluded from the instrumentation. Regular
+expressions can also be used. The syntax is:
+
+``` 
+BEGIN_FILE_INCLUDE_LIST
+file1.c
+bar#.h
+END_FILE_INCLUDE_LIST
+BEGIN_FILE_EXCLUDE_LIST
+file4.c
+foo#.h
+END_FILE_EXCLUDE_LIST
 ```
 
 ## <span class="todo TODO">TODO</span> 
