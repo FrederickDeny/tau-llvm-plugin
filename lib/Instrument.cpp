@@ -47,6 +47,8 @@
 #define TAU_END_FILE_EXCLUDE_LIST_NAME   "END_FILE_EXCLUDE_LIST"
 
 #define TAU_REGEX_STAR              '#'
+#define TAU_REGEX_FILE_STAR         '*'
+#define TAU_REGEX_FILE_QUES         '?'
 
 /*
   TODO: finish exclude
@@ -216,11 +218,13 @@ struct Instrument : public FunctionPass {
 	  errs() << " file " << funcName;
 	}
 
-	if( funcName.end() == std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ){
-	  vec.insert( funcName );
-	} else {
+	if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR )
+	    || funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_STAR )
+	    || funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_QUES ) ) {
 	  errs() << " (regex)";
 	  vecReg.insert( funcName );
+	} else {
+	  vec.insert( funcName );
 	}
 	errs() << "\n";
       }
@@ -359,9 +363,9 @@ struct Instrument : public FunctionPass {
 	} else {
 	  /* Yes: are we in a file where we are instrumenting? */
 	  if( ( filesIncl.count( filename ) > 0 
-		|| regexFits( filename, filesInclRegex ) )
+		|| regexFitsFile( filename, filesInclRegex ) )
 	      && !( filesExcl.count( filename )
-		    || regexFits( filename, filesExclRegex ) ) ){
+		    || regexFitsFile( filename, filesExclRegex ) ) ){
 	    instrumentHere = true;
 	  }
 	}
@@ -381,7 +385,7 @@ struct Instrument : public FunctionPass {
     }
   
     /*! 
-     * This function tries to determine if the current function name (parameter name)
+     * This function determines if the current function name (parameter name)
      * matches a regular expression. Regular expressions can be passed either 
      * on the command-line (historical behavior) or in the input file. The latter
      * use a specific wildcard.
@@ -408,6 +412,37 @@ struct Instrument : public FunctionPass {
         return false;
     }
 
+  /*!
+   * Regex utility. This function takes one of our filename as an input
+   * and converts it into a regex that can be used by std::regex.
+  */
+  std::regex getRegex( std::string str, std::string c ){
+    std::regex q( std::string( "[" + c + "]" ) );
+    std::string q_reg( std::string(  "(." + c + ")" ) );
+    std::string regex_1;
+    
+    std::regex_replace( std::back_inserter( regex_1 ), str.begin(), str.end(), q, q_reg );
+    return std::regex( regex_1 );
+  }
+
+  /*!
+   * TODO
+   * document
+   * can be factorized with regexfit
+   */
+  bool regexFitsFile( const StringRef & name, StringSet<>& regexList ) {
+    bool match = false;
+    for( auto& r : regexList ){
+      std::regex r1 = getRegex( r.getKey().str(), std::string( 1, TAU_REGEX_FILE_STAR ));
+      std::regex r2 = getRegex( r.getKey().str(), std::string( 1, TAU_REGEX_FILE_QUES ));
+      
+      match  = std::regex_match( name.str(), r1 );
+      match |= std::regex_match( name.str(), r2 );
+
+      if( match ) return true;
+    }
+   return false;
+  }
 
     /*!
      *  Add instrumentation to the CallInsts in the given vector, using the

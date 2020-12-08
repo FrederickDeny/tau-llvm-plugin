@@ -199,16 +199,17 @@ END_EXCLUDE_LIST
 ### Include or exclude files from the instrumentation
 
 Similarly, some files can be included or excluded from the instrumentation. Regular
-expressions can also be used. The syntax is:
+expressions can also be used, using '*' to match a sequence of characters and '?' to match
+a given character. The syntax is:
 
 ``` 
 BEGIN_FILE_INCLUDE_LIST
 file1.c
-bar#.h
+bar*.h
 END_FILE_INCLUDE_LIST
 BEGIN_FILE_EXCLUDE_LIST
 file4.c
-foo#.h
+foo?.h
 END_FILE_EXCLUDE_LIST
 ```
 
