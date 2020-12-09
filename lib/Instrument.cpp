@@ -301,32 +301,22 @@ struct Instrument : public FunctionPass {
      *  the original source.
      */
     bool runOnFunction(Function &func) override {
-      // Surely *most* functions make fewer than 50 calls to other functions
-      // that we want to instrument
-      SmallVector<CallAndName, 50> calls;
       bool modified = false;
 
       bool instru = maybeSaveForProfiling( func );
 
-      if(TauDryRun && calls.size() > 0) {
-
+      if( TauDryRun ) {
         // TODO: Fix this.
         // getName() doesn't seem to give a properly mangled name
-        auto pretty_name = normalize_name(func.getName());
+	/*  auto pretty_name = normalize_name(func.getName());
         if(pretty_name.empty()) pretty_name = func.getName();
-
-        errs() << "In function " << pretty_name
-               << "\nThe following would be instrumented:\n";
-        /*for (auto &pair : calls) {
-	  TODO 
-	  }*/
-        errs() << '\n';
+	errs() << pretty_name << " would be instrumented\n";*/
         return false; // Dry run does not modify anything
       }
       if( instru ){
 	modified |= addInstrumentation( func );
       }
-      return modified; //addInstrumentation(calls, func);
+      return modified;
     }
   
     /*!
