@@ -25,6 +25,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/IR/InstIterator.h"
 
 // Need these to use Sampson's registration technique
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
@@ -303,18 +304,10 @@ struct Instrument : public FunctionPass {
       // Surely *most* functions make fewer than 50 calls to other functions
       // that we want to instrument
       SmallVector<CallAndName, 50> calls;
+      bool modified = false;
 
-      for (auto &block : func) {
-        for (auto &inst : block) {
-          if (auto *op = dyn_cast<CallInst>(&inst)) {
-            // Inserting new function calls here (via IRBuilder, e.g.) will
-            // modify the block and potentially give us a never-ending list of
-            // calls to instrument.  It's simpler to just gather them up and
-            // mess with them afterwards.
-            maybeSaveForProfiling(op, calls);
-          }
-        }
-      }
+      bool instru = maybeSaveForProfiling( func );
+
       if(TauDryRun && calls.size() > 0) {
 
         // TODO: Fix this.
@@ -324,15 +317,18 @@ struct Instrument : public FunctionPass {
 
         errs() << "In function " << pretty_name
                << "\nThe following would be instrumented:\n";
-        for (auto &pair : calls) {
-          errs() <<  pair.second << '\n';
-        }
+        /*for (auto &pair : calls) {
+	  TODO 
+	  }*/
         errs() << '\n';
         return false; // Dry run does not modify anything
       }
-      return addInstrumentation(calls, func);
+      if( instru ){
+	modified |= addInstrumentation( func );
+      }
+      return modified; //addInstrumentation(calls, func);
     }
-
+  
     /*!
      *  Inspect the given CallInst and, if it should be profiled, add it
      *  and its recognized name the given vector.
@@ -340,23 +336,13 @@ struct Instrument : public FunctionPass {
      * \param call The CallInst to inspect
      * \param calls Vector to add to, if the CallInst should be profiled
      */
-    void maybeSaveForProfiling(CallInst *call, SmallVectorImpl<CallAndName> &calls) {
-      if(auto *callee = call->getCalledFunction()) {
-        StringRef calleeName = normalize_name(callee->getName());
-        if(calleeName.empty()) {
-          // We may still want to instrument a call with an unmangled name.
-          // Assume any failed demangling won't accidentally leave us with a
-          // misleading name.
-          calleeName = callee->getName();
-        }
-
-        std::string parent( ( call->getFunction()->getName() + "/" + calleeName.data() ).str() );
-        StringRef calleeAndParent( parent );
-	std::string filename = call->getParent()->getParent()->getParent()->getSourceFileName();
+  bool maybeSaveForProfiling( Function& call ){
+	StringRef callName = call.getName();
+	std::string filename = call.getParent()->getSourceFileName();
 
 	/* This big test was explanded for readability */
 	bool instrumentHere = false;
-
+	
 	/* Are we including or excluding some files? */
 	if( (filesIncl.size() + filesInclRegex.size() + filesExcl.size() + filesExclRegex.size() == 0 ) ){
 	  instrumentHere = true;
@@ -364,25 +350,25 @@ struct Instrument : public FunctionPass {
 	  /* Yes: are we in a file where we are instrumenting? */
 	  if( ( filesIncl.count( filename ) > 0 
 		|| regexFitsFile( filename, filesInclRegex ) )
-	      && !( filesExcl.count( filename )
+	      || !( filesExcl.count( filename )
 		    || regexFitsFile( filename, filesExclRegex ) ) ){
 	    instrumentHere = true;
 	  }
 	}
 	if( instrumentHere
 	    &&
-	    ( funcsOfInterest.count( calleeName ) > 0
-	      || regexFits ( calleeName, funcsOfInterestRegex )
-	      || funcsOfInterest.count(calleeAndParent) > 0
+	    ( funcsOfInterest.count( callName ) > 0
+	      || regexFits ( callName, funcsOfInterestRegex )
+	      //	      || funcsOfInterest.count(calleeAndParent) > 0
 	      )
-	    && !( funcsExcl.count( calleeName )
-		  || regexFits( calleeName, funcsExclRegex )
+	    && !( funcsExcl.count( callName )
+		  || regexFits( callName, funcsExclRegex )
 		  ) ) {
-	  errs() << "Instrument " << calleeName << "\n";
-	  calls.push_back({call, calleeName});
+	  errs() << "Instrument " << callName << "\n";
+	  return true;
 	}
-      }
-    }
+	return false;
+  }
   
     /*! 
      * This function determines if the current function name (parameter name)
@@ -453,7 +439,7 @@ struct Instrument : public FunctionPass {
      * \return False if no new instructions were added (only when calls is empty),
      *  True otherwise
      */
-    bool addInstrumentation(SmallVectorImpl<CallAndName> &calls, Function &func) {
+    bool addInstrumentation( Function &func) {
 
       // Declare and get handles to the runtime profiling functions
       auto &context = func.getContext();
@@ -468,29 +454,35 @@ struct Instrument : public FunctionPass {
         onRetFunc = getVoidFunc(TauStopFunc, context, module);
 #endif // LLVM_VERSION_MAJOR <= 8
 
-      bool mutated = false;
-      for (auto &pair : calls) {
-        auto *op = pair.first;
-        auto calleeName = pair.second;
-        IRBuilder<> builder(op);
+      errs() << "Adding instrumentation in " << func.getName() << '\n';
 
-        // This is the recommended way of creating a string constant (to be used
-        // as an argument to runtime functions)
-        Value *strArg = builder.CreateGlobalStringPtr(calleeName);
-        SmallVector<Value *, 1> args{strArg};
+      // Insert instrumentation before the first instruction
+      auto pi = inst_begin( &func );
+      Instruction* i = &*pi;
+      IRBuilder<> before( i );
 
-        // Before the CallInst
-        builder.CreateCall(onCallFunc, args);
+      bool mutated = false; // TODO
 
-        // Set insert point to just after the CallInst
-        builder.SetInsertPoint(op->getParent(), ++builder.GetInsertPoint());
-        builder.CreateCall(onRetFunc, args);
+      // This is the recommended way of creating a string constant (to be used
+      // as an argument to runtime functions)
 
-        mutated = true;
+      Value *strArg = before.CreateGlobalStringPtr( func.getName() );
+      SmallVector<Value *, 1> args{strArg};
+      before.CreateCall( onCallFunc, args );
+      mutated = true;
+
+      // We need to find all the exit points for this function
+
+      for( inst_iterator I = inst_begin( func ), E = inst_end( func ); I != E; ++I){
+	Instruction* e = &*I;
+	IRBuilder<> final( e );
+	if( isa<ReturnInst>( e ) ) {
+	  final.CreateCall( onRetFunc, args );
+	}	  
       }
       return mutated;
     }
-  };
+};
 }
 
 char Instrument::ID = 0;
