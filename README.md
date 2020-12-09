@@ -86,7 +86,7 @@ clang -fplugin=/path/to/TAU_Profiling.so              \
   -mllvm -tau-input-file=./functions_C.txt            \
   -ldl -L/path/to/TAU/and/archi/$TAU_MAKEFILE -l TAU  \
   -Wl,-rpath,/path/to/TAU/and/archi/$TAU_MAKEFILE     \
-  example.c
+  -o example example.c
 ```
 
 Linking against \`libdl\` is required for TAU. Specifying the path for
@@ -99,7 +99,7 @@ clang -fplugin=/path/to/TAU_Profiling_CXX.so        \
   -mllvm -tau-input-file=./functions_CXX.txt        \
   -ldl -L/path/to/TAU/and/archi/$TAU_MAKEFILE -lTAU \
   -Wl,-rpath,/path/to/TAU/and/archi/$TAU_MAKEFILE   \
-  example.cc
+  -o example example.cc
 ```
 
 In the `sandbox/mm` directory, an example of a C++ program using several
@@ -211,6 +211,20 @@ BEGIN_FILE_EXCLUDE_LIST
 file4.c
 foo?.h
 END_FILE_EXCLUDE_LIST
+```
+
+An example for this is given in `sandbox/hh2`. The input file requests the instrumentation 
+of `householder`, `matmul` and all the functions starting with `apply` (`apply#`). There is 
+an `applyR` function in `R.c` and an `applyQ` function in `Q.c`. However, we are excluding 
+`Q.c` from the instrumentation. We should see `householder`, `matmul` and `applyR` in the
+output and not `applyQ` using the following compilation command:
+
+``` bash
+clang -fplugin=/path/to/TAU_Profiling.so              \
+  -mllvm -tau-input-file=functions_hh.txt             \
+  -ldl -L/path/to/TAU/and/archi/$TAU_MAKEFILE -l TAU  \
+  -Wl,-rpath,/path/to/TAU/and/archi/$TAU_MAKEFILE     \
+  -o householder3 householder3.c matmul.c Q.c R.c -lm
 ```
 
 ## <span class="todo TODO">TODO</span> 
