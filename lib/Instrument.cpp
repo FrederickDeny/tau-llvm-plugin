@@ -248,7 +248,7 @@ struct Instrument : public FunctionPass {
       bool rc = true;
 
       /* This will be necessary as long as we don't have pattern matching in C++ */
-      enum TokenValues { begin_func_include, begin_func_exclude,
+      enum TokenValues { wrong_token, begin_func_include, begin_func_exclude,
 			 begin_file_include, begin_file_exclude };
       
       static std::map<std::string, TokenValues> s_mapTokenValues;
@@ -259,7 +259,6 @@ struct Instrument : public FunctionPass {
       s_mapTokenValues[ TAU_BEGIN_FILE_EXCLUDE_LIST_NAME ] = begin_file_exclude;
       
       while(std::getline(file, funcName)) {
-
 	if( funcName.find_first_not_of(' ') != std::string::npos ) {
 	  /* Exclude whitespace-only lines */
 	  
@@ -270,7 +269,7 @@ struct Instrument : public FunctionPass {
 	    break;
 	    
 	  case begin_func_exclude:
-	    errs() << "Excluded functions: \n";
+	    errs() << "Excluded functions: \n"<< s_mapTokenValues[ funcName ] << "\n";
 	    readUntilToken( file, funcsExcl, funcsExclRegex, TAU_END_EXCLUDE_LIST_NAME );
 	    break;
 	 
