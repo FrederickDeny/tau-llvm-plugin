@@ -198,7 +198,7 @@ struct Instrument : public FunctionPass {
   void readUntilToken( std::ifstream& file, StringSet<>& vec, StringSet<>& vecReg, const char* token ){
     std::string funcName;
     std::string s_token( token ); // used by an errs()
-    bool rc = true;
+    bool rc = true, isRegex = false;
 
     while( std::getline( file, funcName ) ){
       if( funcName.find_first_not_of(' ') != std::string::npos ) {
@@ -219,9 +219,25 @@ struct Instrument : public FunctionPass {
 	  errs() << " file " << funcName;
 	}
 
-	if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR )
-	    //|| funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_STAR )
-	    || funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_QUES ) ) {
+	/* The regex wildcards are not the same for filenames and function names. */
+
+	if( s_token.end() == std::find( s_token.begin(), s_token.end(), 'F' ) ){
+	  /* This is a filename */
+	  if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_STAR )
+	      || funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_QUES )){
+	    isRegex = true;
+	  } else {
+	    isRegex = false;
+	  }
+	} else {
+	  /* This is a function name */
+	  if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ) {
+	    isRegex = true;
+	  } else {
+	    isRegex = false;
+	  }
+	}
+	if( isRegex ){
 	  errs() << " (regex)";
 	  vecReg.insert( funcName );
 	} else {
@@ -269,7 +285,7 @@ struct Instrument : public FunctionPass {
 	    break;
 	    
 	  case begin_func_exclude:
-	    errs() << "Excluded functions: \n"<< s_mapTokenValues[ funcName ] << "\n";
+	    //	    errs() << "Excluded functions: \n"<< s_mapTokenValues[ funcName ] << "\n";
 	    readUntilToken( file, funcsExcl, funcsExclRegex, TAU_END_EXCLUDE_LIST_NAME );
 	    break;
 	 
