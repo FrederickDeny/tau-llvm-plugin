@@ -221,7 +221,7 @@ struct Instrument : public FunctionPass {
 
 	/* The regex wildcards are not the same for filenames and function names. */
 
-	if( s_token.end() == std::find( s_token.begin(), s_token.end(), 'F' ) ){
+	if( s_token.end() != std::find( s_token.begin(), s_token.end(), 'F' ) ){
 	  /* This is a filename */
 	  if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_STAR )
 	      || funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_QUES )){
