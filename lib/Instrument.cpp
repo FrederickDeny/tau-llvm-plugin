@@ -220,7 +220,7 @@ struct Instrument : public FunctionPass {
 	}
 
 	if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR )
-	    || funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_STAR )
+	    //|| funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_STAR )
 	    || funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_QUES ) ) {
 	  errs() << " (regex)";
 	  vecReg.insert( funcName );
@@ -328,6 +328,7 @@ struct Instrument : public FunctionPass {
   bool maybeSaveForProfiling( Function& call ){
 	StringRef callName = call.getName();
 	std::string filename = call.getParent()->getSourceFileName();
+	StringRef prettycallName = normalize_name(callName);
 
 	/* This big test was explanded for readability */
 	bool instrumentHere = false;
@@ -346,15 +347,15 @@ struct Instrument : public FunctionPass {
 	}
 	if( instrumentHere
 	    &&
-	    ( funcsOfInterest.count( callName ) > 0
+	    ( funcsOfInterest.count( prettycallName ) > 0
 	      || regexFits ( callName, funcsOfInterestRegex )
 	      //	      || funcsOfInterest.count(calleeAndParent) > 0
 	      )
-	    && !( funcsExcl.count( callName )
-		  || regexFits( callName, funcsExclRegex )
+	    && !( funcsExcl.count( prettycallName )
+		  || regexFits( prettycallName, funcsExclRegex )
 		  ) ) {
-	  errs() << "Instrument " << callName << "\n";
-	  return true;
+	  errs() << "Instrument " << prettycallName << "\n";
+      return true;
 	}
 	return false;
   }
@@ -433,6 +434,7 @@ struct Instrument : public FunctionPass {
       // Declare and get handles to the runtime profiling functions
       auto &context = func.getContext();
       auto *module = func.getParent();
+      StringRef prettyname = normalize_name(func.getName());
 #if( LLVM_VERSION_MAJOR <= 8 )
       Constant
         *onCallFunc = getVoidFunc(TauStartFunc, context, module),
@@ -443,7 +445,7 @@ struct Instrument : public FunctionPass {
         onRetFunc = getVoidFunc(TauStopFunc, context, module);
 #endif // LLVM_VERSION_MAJOR <= 8
 
-      errs() << "Adding instrumentation in " << func.getName() << '\n';
+      errs() << "Adding instrumentation in " << prettyname << '\n';
 
       // Insert instrumentation before the first instruction
       auto pi = inst_begin( &func );
@@ -455,7 +457,7 @@ struct Instrument : public FunctionPass {
       // This is the recommended way of creating a string constant (to be used
       // as an argument to runtime functions)
 
-      Value *strArg = before.CreateGlobalStringPtr( func.getName() );
+      Value *strArg = before.CreateGlobalStringPtr( prettyname );
       SmallVector<Value *, 1> args{strArg};
       before.CreateCall( onCallFunc, args );
       mutated = true;
