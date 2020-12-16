@@ -466,8 +466,8 @@ struct Instrument : public FunctionPass {
 
       for( inst_iterator I = inst_begin( func ), E = inst_end( func ); I != E; ++I){
 	Instruction* e = &*I;
-	IRBuilder<> final( e );
 	if( isa<ReturnInst>( e ) ) {
+	  IRBuilder<> final( e );
 	  final.CreateCall( onRetFunc, args );
 	}	  
       }
