@@ -356,7 +356,7 @@ struct Instrument : public FunctionPass {
 	  /* Yes: are we in a file where we are instrumenting? */
 	  if( ( filesIncl.count( filename ) > 0 
 		|| regexFitsFile( filename, filesInclRegex ) )
-	      || !( filesExcl.count( filename )
+	      && !( filesExcl.count( filename )
 		    || regexFitsFile( filename, filesExclRegex ) ) ){
 	    instrumentHere = true;
 	  }
