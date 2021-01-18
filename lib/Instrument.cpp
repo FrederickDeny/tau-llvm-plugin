@@ -353,12 +353,13 @@ struct Instrument : public FunctionPass {
 	if( (filesIncl.size() + filesInclRegex.size() + filesExcl.size() + filesExclRegex.size() == 0 ) ){
 	  instrumentHere = true;
 	} else {
-	  /* Yes: are we in a file where we are instrumenting? */
-	  if( ( filesIncl.count( filename ) > 0 
-		|| regexFitsFile( filename, filesInclRegex ) )
-	      && !( filesExcl.count( filename )
-		    || regexFitsFile( filename, filesExclRegex ) ) ){
-	    instrumentHere = true;
+        /* Yes: are we in a file where we are instrumenting? */
+        if( ( ( filesIncl.size() + filesInclRegex.size() == 0) // do not specify a list of files to instrument -> instrument them all, except the excluded ones
+              || ( filesIncl.count( filename ) > 0 
+                   || regexFitsFile( filename, filesInclRegex ) ) )
+            && !( filesExcl.count( filename )
+                  || regexFitsFile( filename, filesExclRegex ) ) ){
+            instrumentHere = true;
 	  }
 	}
 	if( instrumentHere
@@ -414,6 +415,12 @@ struct Instrument : public FunctionPass {
     std::string regex_1;
     
     std::regex_replace( std::back_inserter( regex_1 ), str.begin(), str.end(), q, q_reg );
+
+    /* The std::regex constructor crashes if the regex starts with an unexcaped 
+       special character -> escape it. */
+    if( regex_1.at( 0 ) == TAU_REGEX_FILE_STAR || regex_1.at( 0 ) == TAU_REGEX_FILE_QUES ){
+        regex_1 = "\\" + regex_1;
+    } 
     return std::regex( regex_1 );
   }
 
@@ -427,10 +434,8 @@ struct Instrument : public FunctionPass {
     for( auto& r : regexList ){
       std::regex r1 = getRegex( r.getKey().str(), std::string( 1, TAU_REGEX_FILE_STAR ));
       std::regex r2 = getRegex( r.getKey().str(), std::string( 1, TAU_REGEX_FILE_QUES ));
-      
       match  = std::regex_match( name.str(), r1 );
       match |= std::regex_match( name.str(), r2 );
-
       if( match ) return true;
     }
    return false;
