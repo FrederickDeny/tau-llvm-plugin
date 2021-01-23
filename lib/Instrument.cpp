@@ -169,14 +169,18 @@ struct Instrument : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     StringSet<> funcsOfInterest;
     StringSet<> funcsExcl;
-    StringSet<> funcsOfInterestRegex;
-    StringSet<> funcsExclRegex;
-  
+    //StringSet<> funcsOfInterestRegex;
+    //StringSet<> funcsExclRegex;
+    std::vector<std::regex> funcsOfInterestRegex;
+    std::vector<std::regex> funcsExclRegex;
+    
     StringSet<> filesIncl;
     StringSet<> filesExcl;
-    StringSet<> filesInclRegex;
-    StringSet<> filesExclRegex;
-
+    // StringSet<> filesInclRegex;
+    //  StringSet<> filesExclRegex;
+    std::vector<std::regex> filesInclRegex;
+    std::vector<std::regex> filesExclRegex;
+ 
     // basic ==> POSIX regular expression
     std::regex rex{TauRegex,
                    std::regex_constants::ECMAScript};
@@ -195,7 +199,7 @@ struct Instrument : public FunctionPass {
    * put it in the vector or its regex counterpart until the token has been
    * reached.
    */
-  void readUntilToken( std::ifstream& file, StringSet<>& vec, StringSet<>& vecReg, const char* token ){
+    void readUntilToken( std::ifstream& file, StringSet<>& vec, std::vector<std::regex>& vecReg, const char* token ){
     std::string funcName;
     std::string s_token( token ); // used by an errs()
     bool rc = true, isRegex = false;
@@ -215,6 +219,7 @@ struct Instrument : public FunctionPass {
 	}
 	if( s_token.end() == std::find( s_token.begin(), s_token.end(), 'F' ) ){
 	  errs() << " function: " << funcName;
+      /* TODO: trim whitespaces */
 	} else {
 	  errs() << " file " << funcName;
 	}
@@ -222,36 +227,74 @@ struct Instrument : public FunctionPass {
 	/* The regex wildcards are not the same for filenames and function names. */
 
 	if( s_token.end() != std::find( s_token.begin(), s_token.end(), 'F' ) ){
-	  /* This is a filename */
-	  if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_STAR )
-	      || funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_QUES )){
-	    isRegex = true;
-	  } else {
-	    isRegex = false;
-	  }
+        /* This is a filename */
+        if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_STAR )
+            || funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_FILE_QUES )){
+            
+            std::regex q( std::string( "[*]" ) );
+            std::string q_reg( std::string(  "(.*)" ) );
+            std::string regex_1;
+            
+            std::regex_replace( std::back_inserter( regex_1 ), funcName.begin(), funcName.end(), q, q_reg );
+            
+            std::regex q2( std::string( "[?]" ) );
+            std::string q2_reg( std::string(  "(.?)" ) );
+            std::string regex_2;
+            
+            std::regex_replace( std::back_inserter( regex_2 ), regex_1.begin(), regex_1.end(), q2, q2_reg );
+            
+            //errs()<< "regex filename: " << regex_2 << "\n";
+            
+            vecReg.push_back( std::regex( regex_2 ) );
+            isRegex = true;
+            errs() << " (regex)";
+            
+        } else {
+            isRegex = false;
+            vec.insert( funcName );
+        }
 	} else {
-	  /* This is a function name */
-	  if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ) {
-	    isRegex = true;
-	  } else {
-	    isRegex = false;
+        /* This is a function name */
+        if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ) {
+            /* We need to pre-process this regex: escape the parenthesis */
+            std::regex par_o( std::string( "[(]" ) );
+            std::regex par_c( std::string( "[)]" ) );
+            std::string s_o( std::string(  "\\(" ) );
+            std::string s_c( std::string(  "\\)" ) );
+            std::string regex_1, regex_0;
+            std::regex_replace( std::back_inserter( regex_0 ), funcName.begin(), funcName.end(), par_o, s_o );
+            std::regex_replace( std::back_inserter( regex_1 ), regex_0.begin(), regex_0.end(), par_c, s_c );
+            
+            /* Escape the stars (pointers) */
+            std::regex r_s( std::string( "[\*]" ) );
+            std::string star( std::string(  "\\*" ) );
+            std::string regex_2;
+            std::regex_replace( std::back_inserter( regex_2 ), regex_1.begin(), regex_1.end(), r_s, star );
+            
+            /* Wildcard: replace the # by stars */
+            std::regex cross( std::string( "[#]" ) );
+            std::string wildcard( std::string(  "(.*)" ) );
+            std::string regex_3;
+            std::regex_replace( std::back_inserter( regex_3 ), regex_2.begin(), regex_2.end(), cross, wildcard );
+            
+            vecReg.push_back( std::regex( regex_3 ) );
+            // errs()<< "regex function: " << regex_3 << " ";
+            isRegex = true;
+            errs() << " (regex)";
+        } else {
+            isRegex = false;
+            vec.insert( funcName );
 	  }
-	}
-	if( isRegex ){
-	  errs() << " (regex)";
-	  vecReg.insert( funcName );
-	} else {
-	  vec.insert( funcName );
 	}
 	errs() << "\n";
       }
     }
     
     if( rc ){
-      errs() << "Error while reading the instrumentation list in the input file. Did you close it with " << token << "?\n";
+        errs() << "Error while reading the instrumentation list in the input file. Did you close it with " << token << "?\n";
     }
     
-  }
+ }
 
 
     /*!
@@ -348,6 +391,9 @@ struct Instrument : public FunctionPass {
 
 	/* This big test was explanded for readability */
 	bool instrumentHere = false;
+    //errs() << "Name " << prettycallName << " full " << callName << "\n";
+
+    if( prettycallName == "" ) return false;
 	
 	/* Are we including or excluding some files? */
 	if( (filesIncl.size() + filesInclRegex.size() + filesExcl.size() + filesExclRegex.size() == 0 ) ){
@@ -356,20 +402,20 @@ struct Instrument : public FunctionPass {
         /* Yes: are we in a file where we are instrumenting? */
         if( ( ( filesIncl.size() + filesInclRegex.size() == 0) // do not specify a list of files to instrument -> instrument them all, except the excluded ones
               || ( filesIncl.count( filename ) > 0 
-                   || regexFitsFile( filename, filesInclRegex ) ) )
+                   || regexFits( filename, filesInclRegex ) ) )
             && !( filesExcl.count( filename )
-                  || regexFitsFile( filename, filesExclRegex ) ) ){
+                  || regexFits( filename, filesExclRegex ) ) ){
             instrumentHere = true;
 	  }
 	}
 	if( instrumentHere
 	    &&
 	    ( funcsOfInterest.count( prettycallName ) > 0
-	      || regexFits ( prettycallName, funcsOfInterestRegex )
+	      || regexFits ( prettycallName, funcsOfInterestRegex, true )
 	      //	      || funcsOfInterest.count(calleeAndParent) > 0
 	      )
 	    && !( funcsExcl.count( prettycallName )
-		  || regexFits( prettycallName, funcsExclRegex )
+              || regexFits( prettycallName, funcsExclRegex, true )
 		  ) ) {
 	  errs() << "Instrument " << prettycallName << "\n";
       return true;
@@ -383,63 +429,23 @@ struct Instrument : public FunctionPass {
      * on the command-line (historical behavior) or in the input file. The latter
      * use a specific wildcard.
      */
-    bool regexFits( const StringRef & name, StringSet<>& regexList ) {
+    bool regexFits( const StringRef & name, std::vector<std::regex>& regexList, bool cli = false ) {
         /* Regex coming from the command-line */
         bool match = false, imatch = false;
-        if(!TauRegex.empty()) match = std::regex_search(name.str(), rex);
-        if(!TauIRegex.empty()) imatch = std::regex_search(name.str(), irex);
-
-        if( match || imatch ) return true;
+        if( cli ){
+            if(!TauRegex.empty()) match = std::regex_search(name.str(), rex);
+            if(!TauIRegex.empty()) imatch = std::regex_search(name.str(), irex);
+        }
         
-        /* Regex coming from the input file, using '#' as the wildcard */
+        if( match || imatch ) return true;
+
         for( auto& r : regexList ){
-            auto rc = std::search( name.begin(), name.end(),
-                                   r.getKey().begin(), r.getKey().end(),
-                                   []( char txt, char pattern ) {
-                                       return pattern == TAU_REGEX_STAR || pattern == txt;
-                                   } );
-            //   errs() << "rc: " << rc << "\n";
-            if ( name.end() != rc ) return true;
+            match  = std::regex_match( name.str(), r );
+            if( match ) return true;
         }
         
         return false;
     }
-
-  /*!
-   * Regex utility. This function takes one of our filename as an input
-   * and converts it into a regex that can be used by std::regex.
-  */
-  std::regex getRegex( std::string str, std::string c ){
-    std::regex q( std::string( "[" + c + "]" ) );
-    std::string q_reg( std::string(  "(." + c + ")" ) );
-    std::string regex_1;
-    
-    std::regex_replace( std::back_inserter( regex_1 ), str.begin(), str.end(), q, q_reg );
-
-    /* The std::regex constructor crashes if the regex starts with an unexcaped 
-       special character -> escape it. */
-    if( regex_1.at( 0 ) == TAU_REGEX_FILE_STAR || regex_1.at( 0 ) == TAU_REGEX_FILE_QUES ){
-        regex_1 = "\\" + regex_1;
-    } 
-    return std::regex( regex_1 );
-  }
-
-  /*!
-   * TODO
-   * document
-   * can be factorized with regexfit
-   */
-  bool regexFitsFile( const StringRef & name, StringSet<>& regexList ) {
-    bool match = false;
-    for( auto& r : regexList ){
-      std::regex r1 = getRegex( r.getKey().str(), std::string( 1, TAU_REGEX_FILE_STAR ));
-      std::regex r2 = getRegex( r.getKey().str(), std::string( 1, TAU_REGEX_FILE_QUES ));
-      match  = std::regex_match( name.str(), r1 );
-      match |= std::regex_match( name.str(), r2 );
-      if( match ) return true;
-    }
-   return false;
-  }
 
     /*!
      *  Add instrumentation to the CallInsts in the given vector, using the
