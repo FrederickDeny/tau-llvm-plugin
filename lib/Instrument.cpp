@@ -218,7 +218,15 @@ struct Instrument : public FunctionPass {
 	  errs() << "Exclude";
 	}
 	if( s_token.end() == std::find( s_token.begin(), s_token.end(), 'F' ) ){
-	  errs() << " function: " << funcName;
+            std::regex par_o( std::string( "\\([\\s]" ) );
+            std::regex par_c( std::string( "[\\s]\\)" ) );
+            std::string s_o( std::string(  "(" ) );
+            std::string s_c( std::string(  ")" ) );
+            std::string regex_1, regex_0;
+            std::regex_replace( std::back_inserter( regex_0 ), funcName.begin(), funcName.end(), par_o, s_o );
+            std::regex_replace( std::back_inserter( regex_1 ), regex_0.begin(), regex_0.end(), par_c, s_c );
+            funcName =  std::string( regex_1 );
+	    errs() << " function: " << funcName;
       /* TODO: trim whitespaces */
 	} else {
 	  errs() << " file " << funcName;
@@ -257,8 +265,8 @@ struct Instrument : public FunctionPass {
         /* This is a function name */
         if( funcName.end() != std::find( funcName.begin(), funcName.end(), TAU_REGEX_STAR ) ) {
             /* We need to pre-process this regex: escape the parenthesis */
-            std::regex par_o( std::string( "[(]" ) );
-            std::regex par_c( std::string( "[)]" ) );
+            std::regex par_o( std::string( "\\(" ) );
+            std::regex par_c( std::string( "\\)" ) );
             std::string s_o( std::string(  "\\(" ) );
             std::string s_c( std::string(  "\\)" ) );
             std::string regex_1, regex_0;
@@ -278,7 +286,7 @@ struct Instrument : public FunctionPass {
             std::regex_replace( std::back_inserter( regex_3 ), regex_2.begin(), regex_2.end(), cross, wildcard );
             
             vecReg.push_back( std::regex( regex_3 ) );
-            // errs()<< "regex function: " << regex_3 << " ";
+	    //	    errs()<< "regex function: " << regex_3 << " ";
             isRegex = true;
             errs() << " (regex)";
         } else {
