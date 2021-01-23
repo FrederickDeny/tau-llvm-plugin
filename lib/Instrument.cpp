@@ -365,7 +365,7 @@ struct Instrument : public FunctionPass {
 	if( instrumentHere
 	    &&
 	    ( funcsOfInterest.count( prettycallName ) > 0
-	      || regexFits ( callName, funcsOfInterestRegex )
+	      || regexFits ( prettycallName, funcsOfInterestRegex )
 	      //	      || funcsOfInterest.count(calleeAndParent) > 0
 	      )
 	    && !( funcsExcl.count( prettycallName )
