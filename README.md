@@ -146,6 +146,13 @@ compute_interchange(double**, double**, double**, int, int, int)
 END_INCLUDE_LIST
 ```
 
+Templates work with the type or non-type parameter specified:
+
+``` bash
+void householder<double>(int, int, double**, double**, double**)
+void householder<float>(int, int, float**, float**, float**)
+```
+
 ### Regular expressions
 
 The module provides two ways of passing function names as regular expressions.
@@ -194,6 +201,12 @@ all the function whose names start with `check` using:
 BEGIN_EXCLUDE_LIST
 check#
 END_EXCLUDE_LIST
+```
+
+Wildcards also work for template types:
+
+``` 
+void applyQ<#>(int, #**, #*, #, int)
 ```
 
 ### Include or exclude files from the instrumentation
