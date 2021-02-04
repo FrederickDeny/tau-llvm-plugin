@@ -240,7 +240,7 @@ clang -fplugin=/path/to/TAU_Profiling.so              \
   -o householder3 householder3.c matmul.c Q.c R.c -lm
 ```
 
-### Functions in header files
+## Functions in header files
 
 Functions defined in header files can be included or excluded by file name using the -g option
 in the compilation command. Otherwise, they will appear to be defined in the .c or .cpp file(s)
