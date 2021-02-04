@@ -246,6 +246,8 @@ Functions defined in header files can be included or excluded by file name using
 in the compilation command. Otherwise, they will appear to be defined in the .c or .cpp file(s)
 that include(s) them.
 
+You can find an example in the `sandbox/header` directory.
+
 ## <span class="todo TODO">TODO</span> 
 
   - Write something to spit out the names of known called functions,
