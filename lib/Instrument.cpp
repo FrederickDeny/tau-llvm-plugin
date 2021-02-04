@@ -27,6 +27,10 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/IR/InstIterator.h"
 
+#include <llvm/IR/DebugLoc.h>
+#include <llvm/IR/DebugInfoMetadata.h>
+#include <clang/Basic/SourceManager.h>
+
 // Need these to use Sampson's registration technique
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 #include "llvm/IR/LegacyPassManager.h"
@@ -343,7 +347,17 @@ struct Instrument : public FunctionPass {
      */
   bool maybeSaveForProfiling( Function& call ){
 	StringRef callName = call.getName();
-	std::string filename = call.getParent()->getSourceFileName();
+    std::string filename;
+    
+    auto pi = inst_begin( &call );
+    Instruction* instruction = &*pi;
+    const llvm::DebugLoc &debugInfo = instruction->getDebugLoc();
+    if( NULL != debugInfo ){ /* if compiled with -g */
+        filename = debugInfo->getFilename().str();
+    } else {
+        filename = call.getParent()->getSourceFileName();
+    }
+
 	StringRef prettycallName = normalize_name(callName);
 
 	/* This big test was explanded for readability */
