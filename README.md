@@ -2,7 +2,7 @@
 
 ## Building
 
-This pass (in `lib/Instrument.cpp`) should be built against the install of LLVM you want to use it in. The `master` branch was tested against 6.0, 7.0, 8.0, 9.0, 10.0, 11.0 and the current master branch (12.0).
+This pass (in `lib/Instrument.cpp`) should be built against the install of LLVM you want to use it in. The `master` branch was tested against 6.x, 7.x, 8.x, 9.x, 10.x, 11.x, 12.x and the current master branch (13.x).
 
 ### Independently
 
@@ -11,7 +11,7 @@ Starting at the project root,
 ``` bash
 mkdir -p build
 cd build
-cmake ..
+cmake .. -DLLVM_ROOT=$LLVM_DIR
 cmake --build .
 ```
 
@@ -95,7 +95,7 @@ dynamic linking also appears to be necessary.
 The process is similar for the example C++ program:
 
 ``` bash
-clang -fplugin=/path/to/TAU_Profiling_CXX.so        \
+clang++ -fplugin=/path/to/TAU_Profiling_CXX.so        \
   -mllvm -tau-input-file=./functions_CXX.txt        \
   -ldl -L/path/to/TAU/and/archi/$TAU_MAKEFILE -lTAU \
   -Wl,-rpath,/path/to/TAU/and/archi/$TAU_MAKEFILE   \
@@ -106,7 +106,7 @@ In the `sandbox/mm` directory, an example of a C++ program using several
 source files is given and can be compiled using:
 
 ``` bash
-clang -O3 -g -fplugin=/path/to/TAU_Profiling_CXX.so   \ 
+clang++ -O3 -g -fplugin=/path/to/TAU_Profiling_CXX.so   \ 
   -mllvm -tau-input-file=./functions_CXX_mm.txt -ldl  \
   -L/path/to/TAU/and/archi/lib/$TAU_MAKEFILE -lTAU    \
   -Wl,-rpath,/path/to/TAU/and/archi/lib/$TAU_MAKEFILE \
@@ -114,6 +114,20 @@ clang -O3 -g -fplugin=/path/to/TAU_Profiling_CXX.so   \
 ```
 Running the resulting executable in either case should produce a
 `profile.*` file.
+
+## LLVM 13
+
+A new pass manager was introduced in LLVM 13. For the moment, both pass managers are available in LLVM 13. This pass uses the "old" one, which must be enabled with `-flegacy-pass-manager`.
+
+Therefore, if you are using LLVM 13, you need to compile with, for instance:
+
+``` bash
+clang++ -flegacy-pass-manager -fplugin=/path/to/TAU_Profiling_CXX.so        \
+  -mllvm -tau-input-file=./functions_CXX.txt        \
+  -ldl -L/path/to/TAU/and/archi/$TAU_MAKEFILE -lTAU \
+  -Wl,-rpath,/path/to/TAU/and/archi/$TAU_MAKEFILE   \
+  -o example example.cc
+```
 
 ## Input file syntax
 
