@@ -34,7 +34,7 @@
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
-#include "include/Instrument.h"
+#include "Instrument.h"
 
 #ifdef TAU_PROF_CXX
 #include <cxxabi.h>
