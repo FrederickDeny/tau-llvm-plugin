@@ -23,6 +23,8 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/Pass.h"
+#include "llvm/Passes/PassBuilder.h"
+#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -478,7 +480,42 @@ void Instrument::loadFunctionsFromFile(std::ifstream &file) {
     }
   }
 }
-char Instrument::ID = 0;
+
+PreservedAnalyses Instrument::run(Function &F, FunctionAnalysisManager &) {
+
+  errs() << "in Instrument run\n";
+  if (!TauInputFile.empty()) {
+    std::ifstream ifile{TauInputFile};
+    loadFunctionsFromFile(ifile);
+  }
+
+  bool Changed = runOnFunction(F);
+
+  return (Changed ? PreservedAnalyses::none() : PreservedAnalyses::all());
+}
+
+PassPluginLibraryInfo getInstrumentPluginInfo() {
+  return {LLVM_PLUGIN_API_VERSION, "tau-prof", LLVM_VERSION_STRING,
+          [](PassBuilder &PB) {
+            PB.registerPipelineParsingCallback(
+                [](StringRef Name, FunctionPassManager &FPM,
+                   ArrayRef<PassBuilder::PipelineElement>) {
+                  if (Name == "tau-prof") {
+                    FPM.addPass(Instrument());
+                    errs() << "pass added\n";
+                    return true;
+                  }
+                  return false;
+                });
+          }};
+}
+
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
+llvmGetPassPluginInfo() {
+  return getInstrumentPluginInfo();
+}
+
+/*char Instrument::ID = 0;
 
 static RegisterPass<Instrument> X("tau-prof", "TAU Profiling", false, false);
 
@@ -490,4 +527,4 @@ static void registerInstrumentPass(const PassManagerBuilder &,
 }
 static RegisterStandardPasses
     RegisterMyPass(PassManagerBuilder::EP_EarlyAsPossible,
-                   registerInstrumentPass);
+                   registerInstrumentPass);*/

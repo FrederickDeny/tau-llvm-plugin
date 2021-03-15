@@ -48,7 +48,7 @@ cl::opt<bool>
 /*!
  *    * The instrumentation pass.
  *       */
-struct Instrument : public FunctionPass {
+/*struct Instrument : public FunctionPass {
 
   StringSet<> funcsOfInterest;
   StringSet<> funcsExcl;
@@ -88,5 +88,41 @@ struct Instrument : public FunctionPass {
   }
 
   bool runOnFunction(Function &func) override;
+};*/
+
+struct Instrument : public PassInfoMixin<Instrument> {
+
+  StringSet<> funcsOfInterest;
+  StringSet<> funcsExcl;
+  // StringSet<> funcsOfInterestRegex;
+  // StringSet<> funcsExclRegex;
+  std::vector<std::regex> funcsOfInterestRegex;
+  std::vector<std::regex> funcsExclRegex;
+
+  StringSet<> filesIncl;
+  StringSet<> filesExcl;
+  // StringSet<> filesInclRegex;
+  //  StringSet<> filesExclRegex;
+  std::vector<std::regex> filesInclRegex;
+  std::vector<std::regex> filesExclRegex;
+
+  // basic ==> POSIX regular expression
+  std::regex rex{TauRegex, std::regex_constants::ECMAScript};
+  std::regex irex{TauIRegex, std::regex_constants::ECMAScript |
+                                 std::regex_constants::icase};
+
+  void loadFunctionsFromFile(std::ifstream &file);
+  bool maybeSaveForProfiling(Function &call);
+  bool regexFits(const StringRef &name, std::vector<std::regex> &regexList,
+                 bool cli = false);
+  bool addInstrumentation(Function &func);
+  void readUntilToken(std::ifstream &file, StringSet<> &vec,
+                      std::vector<std::regex> &vecReg, const char *token);
+
+  using CallAndName = std::pair<CallInst *, StringRef>;
+  PreservedAnalyses run(Function &func, FunctionAnalysisManager &AM);
+
+  bool runOnFunction(Function &func);
 };
+
 } // namespace
