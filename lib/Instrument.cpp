@@ -134,6 +134,7 @@ static FunctionCallee getVoidFunc(StringRef funcname, LLVMContext &context,
  *  the original source.
  */
 bool Instrument::runOnFunction(Function &func) {
+  /*errs() << "runonfunction started\n";*/
   bool modified = false;
 
   bool instru = maybeSaveForProfiling(func);
@@ -484,10 +485,6 @@ void Instrument::loadFunctionsFromFile(std::ifstream &file) {
 PreservedAnalyses Instrument::run(Function &F, FunctionAnalysisManager &) {
 
   errs() << "in Instrument run\n";
-  if (!TauInputFile.empty()) {
-    std::ifstream ifile{TauInputFile};
-    loadFunctionsFromFile(ifile);
-  }
 
   bool Changed = runOnFunction(F);
 

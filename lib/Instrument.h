@@ -3,6 +3,9 @@
 
 #include "llvm/ADT/StringRef.h"
 
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/raw_ostream.h"
+
 using namespace llvm;
 
 namespace {
@@ -12,35 +15,35 @@ namespace {
 // only real caveat is that the profiling function symbols must be present in
 // some source/object/library or compilation will fail at link-time.
 
-cl::opt<std::string> TauInputFile(
+static cl::opt<std::string> TauInputFile(
     "tau-input-file",
     cl::desc("Specify file containing the names of functions to instrument"),
     cl::value_desc("filename"));
 
-cl::opt<std::string> TauStartFunc(
+static cl::opt<std::string> TauStartFunc(
     "tau-start-func",
     cl::desc(
         "Specify the profiling function to call before functions of interest"),
     cl::value_desc("Function name"), cl::init("Tau_start"));
 
-cl::opt<std::string> TauStopFunc(
+static cl::opt<std::string> TauStopFunc(
     "tau-stop-func",
     cl::desc(
         "Specify the profiling function to call after functions of interest"),
     cl::value_desc("Function name"), cl::init("Tau_stop"));
 
-cl::opt<std::string> TauRegex(
+static cl::opt<std::string> TauRegex(
     "tau-regex",
     cl::desc("Specify a regex to identify functions interest (case-sensitive)"),
     cl::value_desc("Regular Expression"), cl::init(""));
 
-cl::opt<std::string> TauIRegex(
+static cl::opt<std::string> TauIRegex(
     "tau-iregex",
     cl::desc(
         "Specify a regex to identify functions interest (case-insensitive)"),
     cl::value_desc("Regular Expression"), cl::init(""));
 
-cl::opt<bool>
+static cl::opt<bool>
     TauDryRun("tau-dry-run",
               cl::desc("Don't actually instrument the code, just print "
                        "what would be instrumented"));
@@ -118,6 +121,14 @@ struct Instrument : public PassInfoMixin<Instrument> {
   bool addInstrumentation(Function &func);
   void readUntilToken(std::ifstream &file, StringSet<> &vec,
                       std::vector<std::regex> &vecReg, const char *token);
+
+  Instrument() {
+    if (!TauInputFile.empty()) {
+      std::ifstream ifile{TauInputFile};
+      loadFunctionsFromFile(ifile);
+      errs() << "functions were loaded from file \n";
+    }
+  }
 
   using CallAndName = std::pair<CallInst *, StringRef>;
   PreservedAnalyses run(Function &func, FunctionAnalysisManager &AM);
