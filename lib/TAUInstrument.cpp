@@ -36,7 +36,7 @@
 #include "llvm/IR/LegacyPassManager.h"
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 
-#include "Instrument.h"
+#include "TAUInstrument.h"
 
 #ifdef TAU_PROF_CXX
 #include <cxxabi.h>
@@ -133,7 +133,7 @@ static FunctionCallee getVoidFunc(StringRef funcname, LLVMContext &context,
  *  The FunctionPass interface method, called on each function produced from
  *  the original source.
  */
-bool Instrument::runOnFunction(Function &func) {
+bool TAUInstrument::runOnFunction(Function &func) {
   /*errs() << "runonfunction started\n";*/
   bool modified = false;
 
@@ -160,7 +160,7 @@ bool Instrument::runOnFunction(Function &func) {
  * \param call The CallInst to inspect
  * \param calls Vector to add to, if the CallInst should be profiled
  */
-bool Instrument::maybeSaveForProfiling(Function &call) {
+bool TAUInstrument::maybeSaveForProfiling(Function &call) {
   StringRef callName = call.getName();
   std::string filename;
 
@@ -217,9 +217,9 @@ bool Instrument::maybeSaveForProfiling(Function &call) {
  * on the command-line (historical behavior) or in the input file. The latter
  * use a specific wildcard.
  */
-bool Instrument::regexFits(const StringRef &name,
-                           std::vector<std::regex> &regexList,
-                           bool cli /*= false*/) {
+bool TAUInstrument::regexFits(const StringRef &name,
+                              std::vector<std::regex> &regexList,
+                              bool cli /*= false*/) {
   /* Regex coming from the command-line */
   bool match = false, imatch = false;
   if (cli) {
@@ -250,7 +250,7 @@ bool Instrument::regexFits(const StringRef &name,
  * \return False if no new instructions were added (only when calls is empty),
  *  True otherwise
  */
-bool Instrument::addInstrumentation(Function &func) {
+bool TAUInstrument::addInstrumentation(Function &func) {
 
   // Declare and get handles to the runtime profiling functions
   auto &context = func.getContext();
@@ -298,9 +298,9 @@ bool Instrument::addInstrumentation(Function &func) {
  * put it in the vector or its regex counterpart until the token has been
  * reached.
  */
-void Instrument::readUntilToken(std::ifstream &file, StringSet<> &vec,
-                                std::vector<std::regex> &vecReg,
-                                const char *token) {
+void TAUInstrument::readUntilToken(std::ifstream &file, StringSet<> &vec,
+                                   std::vector<std::regex> &vecReg,
+                                   const char *token) {
   std::string funcName;
   std::string s_token(token); // used by an errs()
   bool rc = true;
@@ -419,7 +419,7 @@ void Instrument::readUntilToken(std::ifstream &file, StringSet<> &vec,
  *  be instrumented.  This modifies the class member funcsOfInterest to hold
  *  strings from the file.
  */
-void Instrument::loadFunctionsFromFile(std::ifstream &file) {
+void TAUInstrument::loadFunctionsFromFile(std::ifstream &file) {
   std::string funcName;
 
   /* This will be necessary as long as we don't have pattern matching in C++ */
@@ -482,7 +482,7 @@ void Instrument::loadFunctionsFromFile(std::ifstream &file) {
   }
 }
 
-PreservedAnalyses Instrument::run(Function &F, FunctionAnalysisManager &) {
+PreservedAnalyses TAUInstrument::run(Function &F, FunctionAnalysisManager &) {
 
   errs() << "in Instrument run\n";
 
@@ -491,14 +491,14 @@ PreservedAnalyses Instrument::run(Function &F, FunctionAnalysisManager &) {
   return (Changed ? PreservedAnalyses::none() : PreservedAnalyses::all());
 }
 
-PassPluginLibraryInfo getInstrumentPluginInfo() {
+PassPluginLibraryInfo getTAUInstrumentPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "tau-prof", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
                   if (Name == "tau-prof") {
-                    FPM.addPass(Instrument());
+                    FPM.addPass(TAUInstrument());
                     errs() << "pass added\n";
                     return true;
                   }
@@ -509,7 +509,7 @@ PassPluginLibraryInfo getInstrumentPluginInfo() {
 
 extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
 llvmGetPassPluginInfo() {
-  return getInstrumentPluginInfo();
+  return getTAUInstrumentPluginInfo();
 }
 
 /*char Instrument::ID = 0;

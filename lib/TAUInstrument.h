@@ -93,7 +93,7 @@ static cl::opt<bool>
   bool runOnFunction(Function &func) override;
 };*/
 
-struct Instrument : public PassInfoMixin<Instrument> {
+struct TAUInstrument : public PassInfoMixin<TAUInstrument> {
 
   StringSet<> funcsOfInterest;
   StringSet<> funcsExcl;
@@ -122,8 +122,7 @@ struct Instrument : public PassInfoMixin<Instrument> {
   void readUntilToken(std::ifstream &file, StringSet<> &vec,
                       std::vector<std::regex> &vecReg, const char *token);
 
-<<<<<<< HEAD
-  Instrument() {
+  TAUInstrument() {
     if (!TauInputFile.empty()) {
       std::ifstream ifile{TauInputFile};
       loadFunctionsFromFile(ifile);
@@ -131,8 +130,6 @@ struct Instrument : public PassInfoMixin<Instrument> {
     }
   }
 
-=======
->>>>>>> 4ffea11ee4a0fb1a75e789eaeb1568a69d0b95bf
   using CallAndName = std::pair<CallInst *, StringRef>;
   PreservedAnalyses run(Function &func, FunctionAnalysisManager &AM);
 
