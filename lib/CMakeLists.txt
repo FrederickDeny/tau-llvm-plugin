@@ -1,7 +1,7 @@
 # For use with C programs
 if(${CLANG_VERSION_MAJOR} VERSION_LESS 8)
 add_llvm_loadable_module(TAU_Profiling
-  Instrument.cpp
+    TAUInstrument.cpp
 
   DEPENDS
   intrinsics_gen
@@ -11,7 +11,7 @@ add_llvm_loadable_module(TAU_Profiling
 else()
 add_llvm_library(TAU_Profiling
   MODULE
-  Instrument.cpp
+  TAUInstrument.cpp
 
   DEPENDS
   intrinsics_gen
@@ -23,7 +23,7 @@ endif()
 # For use with C++ programs
 if(${CLANG_VERSION_MAJOR} VERSION_LESS 8)
 add_llvm_loadable_module(TAU_Profiling_CXX
-  Instrument.cpp
+    TAUInstrument.cpp
 
   DEPENDS
   intrinsics_gen
@@ -33,7 +33,7 @@ add_llvm_loadable_module(TAU_Profiling_CXX
 else()
 add_llvm_library(TAU_Profiling_CXX
   MODULE
-  Instrument.cpp
+  TAUInstrument.cpp
 
   DEPENDS
   intrinsics_gen
