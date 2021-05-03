@@ -134,7 +134,7 @@ static FunctionCallee getVoidFunc(StringRef funcname, LLVMContext &context,
  *  the original source.
  */
 bool TAUInstrument::runOnFunction(Function &func) {
-  /*errs() << "runonfunction started\n";*/
+  errs() << "runonfunction started\n";
   bool modified = false;
 
   bool instru = maybeSaveForProfiling(func);
@@ -494,6 +494,15 @@ PreservedAnalyses TAUInstrument::run(Function &F, FunctionAnalysisManager &) {
 PassPluginLibraryInfo getTAUInstrumentPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "tau-prof", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
+            errs() << "in pass registrating block \n";
+            errs() << CodeGenOpt::Level() << "\n";
+            PB.registerPipelineStartEPCallback(
+                [](llvm::ModulePassManager &MPM,
+                   llvm::PassBuilder::OptimizationLevel OptLevelO3) {
+                  errs() << "adding pass to -O \n";
+                  MPM.addPass(
+                      createModuleToFunctionPassAdaptor(TAUInstrument()));
+                });
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
@@ -504,10 +513,20 @@ PassPluginLibraryInfo getTAUInstrumentPluginInfo() {
                   }
                   return false;
                 });
+            /*PB.registerShouldRunOptionalPassCallback(
+                [](StringRef Name, FunctionPassManager &FPM,
+                   ArrayRef<PassBuilder::PipelineElement>) {
+                  if (Name == "tau-prof") {
+                    FPM.addPass(TAUInstrument());
+                    errs() << "pass added\n";
+                    return true;
+                  }
+                  return false;
+                });*/
           }};
 }
 
-extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo
+extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
 llvmGetPassPluginInfo() {
   return getTAUInstrumentPluginInfo();
 }
