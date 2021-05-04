@@ -491,6 +491,13 @@ PreservedAnalyses TAUInstrument::run(Function &F, FunctionAnalysisManager &) {
   return (Changed ? PreservedAnalyses::none() : PreservedAnalyses::all());
 }
 
+bool LegacyTAUInstrument::runOnFunction(Function &func) {
+  errs() << "in legacy run on function\n";
+  bool Changed = Impl.runOnFunction(func);
+
+  return Changed;
+}
+
 PassPluginLibraryInfo getTAUInstrumentPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "tau-prof", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
@@ -531,13 +538,17 @@ llvmGetPassPluginInfo() {
   return getTAUInstrumentPluginInfo();
 }
 
-/*char Instrument::ID = 0;
+//----------------------------------------------------------------------------
+// Legacy PM Registration
+//----------------------------------------------------------------------------
 
-static RegisterPass<Instrument> X("tau-prof", "TAU Profiling", false, false);
+char LegacyTAUInstrument::ID = 0;
 
+static RegisterPass<LegacyTAUInstrument>
+    X("legacy-tau-prof", "Legacy TAU Profiling", false, false);
 // Automatically enable the pass.
 // http://adriansampson.net/blog/clangpass.html
-static void registerInstrumentPass(const PassManagerBuilder &,
+/*static void registerInstrumentPass(const PassManagerBuilder &,
                                    legacy::PassManagerBase &PM) {
   PM.add(new Instrument());
 }

@@ -48,51 +48,6 @@ static cl::opt<bool>
               cl::desc("Don't actually instrument the code, just print "
                        "what would be instrumented"));
 
-/*!
- *    * The instrumentation pass.
- *       */
-/*struct Instrument : public FunctionPass {
-
-  StringSet<> funcsOfInterest;
-  StringSet<> funcsExcl;
-  // StringSet<> funcsOfInterestRegex;
-  // StringSet<> funcsExclRegex;
-  std::vector<std::regex> funcsOfInterestRegex;
-  std::vector<std::regex> funcsExclRegex;
-
-  StringSet<> filesIncl;
-  StringSet<> filesExcl;
-  // StringSet<> filesInclRegex;
-  //  StringSet<> filesExclRegex;
-  std::vector<std::regex> filesInclRegex;
-  std::vector<std::regex> filesExclRegex;
-
-  // basic ==> POSIX regular expression
-  std::regex rex{TauRegex, std::regex_constants::ECMAScript};
-  std::regex irex{TauIRegex, std::regex_constants::ECMAScript |
-                                 std::regex_constants::icase};
-
-  void loadFunctionsFromFile(std::ifstream &file);
-  bool maybeSaveForProfiling(Function &call);
-  bool regexFits(const StringRef &name, std::vector<std::regex> &regexList,
-                 bool cli = false);
-  bool addInstrumentation(Function &func);
-  void readUntilToken(std::ifstream &file, StringSet<> &vec,
-                      std::vector<std::regex> &vecReg, const char *token);
-  using CallAndName = std::pair<CallInst *, StringRef>;
-
-  static char ID; // Pass identification, replacement for typeid
-
-  Instrument() : FunctionPass(ID) {
-    if (!TauInputFile.empty()) {
-      std::ifstream ifile{TauInputFile};
-      loadFunctionsFromFile(ifile);
-    }
-  }
-
-  bool runOnFunction(Function &func) override;
-};*/
-
 struct TAUInstrument : public PassInfoMixin<TAUInstrument> {
 
   StringSet<> funcsOfInterest;
@@ -134,6 +89,19 @@ struct TAUInstrument : public PassInfoMixin<TAUInstrument> {
   PreservedAnalyses run(Function &func, FunctionAnalysisManager &AM);
 
   bool runOnFunction(Function &func);
+};
+
+/*!
+ *    * The instrumentation pass.
+ *       */
+struct LegacyTAUInstrument : public FunctionPass {
+
+  static char ID; // Pass identification, replacement for typeid
+
+  LegacyTAUInstrument() : FunctionPass(ID) {}
+  bool runOnFunction(Function &func) override;
+
+  TAUInstrument Impl;
 };
 
 } // namespace
