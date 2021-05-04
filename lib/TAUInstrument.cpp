@@ -548,10 +548,10 @@ static RegisterPass<LegacyTAUInstrument>
     X("legacy-tau-prof", "Legacy TAU Profiling", false, false);
 // Automatically enable the pass.
 // http://adriansampson.net/blog/clangpass.html
-/*static void registerInstrumentPass(const PassManagerBuilder &,
-                                   legacy::PassManagerBase &PM) {
-  PM.add(new Instrument());
+static void registerLegacyTAUInstrumentPass(const PassManagerBuilder &,
+                                            legacy::PassManagerBase &PM) {
+  PM.add(new LegacyTAUInstrument());
 }
 static RegisterStandardPasses
     RegisterMyPass(PassManagerBuilder::EP_EarlyAsPossible,
-                   registerInstrumentPass);*/
+                   registerLegacyTAUInstrumentPass);
