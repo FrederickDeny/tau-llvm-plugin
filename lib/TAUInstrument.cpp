@@ -502,14 +502,15 @@ PassPluginLibraryInfo getTAUInstrumentPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "tau-prof", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             errs() << "in pass registrating block \n";
-            errs() << CodeGenOpt::Level() << "\n";
+            /*errs() << CodeGenOpt::Level() << "\n";
             PB.registerPipelineStartEPCallback(
                 [](llvm::ModulePassManager &MPM,
                    llvm::PassBuilder::OptimizationLevel OptLevelO3) {
                   errs() << "adding pass to -O \n";
                   MPM.addPass(
                       createModuleToFunctionPassAdaptor(TAUInstrument()));
-                });
+                }); ## supposed to allow instrumentation in standard
+            optimisationi pipeline O3 but crashes build on LLVM V < 13 */
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, FunctionPassManager &FPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
