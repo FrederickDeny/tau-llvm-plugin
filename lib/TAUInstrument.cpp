@@ -24,7 +24,6 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
-#include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -40,6 +39,10 @@
 
 #ifdef TAU_PROF_CXX
 #include <cxxabi.h>
+#endif
+
+#if (LLVM_VERSION_MAJOR > 6)
+#include "llvm/Passes/PassPlugin.h"
 #endif
 
 // Other passes do this, so I assume the macro is useful somewhere
@@ -498,6 +501,7 @@ bool LegacyTAUInstrument::runOnFunction(Function &func) {
   return Changed;
 }
 
+#if (LLVM_VERSION_MAJOR > 6)
 PassPluginLibraryInfo getTAUInstrumentPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "tau-prof", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
@@ -538,6 +542,7 @@ extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
 llvmGetPassPluginInfo() {
   return getTAUInstrumentPluginInfo();
 }
+#endif
 
 //----------------------------------------------------------------------------
 // Legacy PM Registration
