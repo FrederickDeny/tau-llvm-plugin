@@ -500,49 +500,53 @@ bool LegacyTAUInstrument::runOnFunction(Function &func) {
 
   return Changed;
 }
+//
+//#if (LLVM_VERSION_MAJOR > 6)
+//PassPluginLibraryInfo getTAUInstrumentPluginInfo() {
+//  return {LLVM_PLUGIN_API_VERSION, "tau-prof", LLVM_VERSION_STRING,
+//          [](PassBuilder &PB) {
+//            errs() << "in pass registrating block \n";
+//            /*errs() << CodeGenOpt::Level() << "\n";
+//            PB.registerPipelineStartEPCallback(
+//                [](llvm::ModulePassManager &MPM,
+//                   llvm::PassBuilder::OptimizationLevel OptLevelO3) {
+//                  errs() << "adding pass to -O \n";
+//                  MPM.addPass(
+//                      createModuleToFunctionPassAdaptor(TAUInstrument()));
+//                }); ## supposed to allow instrumentation in standard
+//            optimisationi pipeline O3 but crashes build on LLVM V < 13 */
+//            PB.registerPipelineParsingCallback(
+//                [](StringRef Name, FunctionPassManager &FPM,
+//                   ArrayRef<PassBuilder::PipelineElement>) {
+//                  if (Name == "tau-prof") {
+//                    FPM.addPass(TAUInstrument());
+//                    errs() << "pass added\n";
+//                    return true;
+//                  }
+//                  return false;
+//                });
+//            /*PB.registerShouldRunOptionalPassCallback(
+//                [](StringRef Name, FunctionPassManager &FPM,
+//                   ArrayRef<PassBuilder::PipelineElement>) {
+//                  if (Name == "tau-prof") {
+//                    FPM.addPass(TAUInstrument());
+//                    errs() << "pass added\n";
+//                    return true;
+//                  }
+//                  return false;
+//                });*/
+//          }};
+//}
+//
+//extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
+//llvmGetPassPluginInfo() {
+//  return getTAUInstrumentPluginInfo();
+//}
+//#endif
 
-#if (LLVM_VERSION_MAJOR > 6)
-PassPluginLibraryInfo getTAUInstrumentPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "tau-prof", LLVM_VERSION_STRING,
-          [](PassBuilder &PB) {
-            errs() << "in pass registrating block \n";
-            /*errs() << CodeGenOpt::Level() << "\n";
-            PB.registerPipelineStartEPCallback(
-                [](llvm::ModulePassManager &MPM,
-                   llvm::PassBuilder::OptimizationLevel OptLevelO3) {
-                  errs() << "adding pass to -O \n";
-                  MPM.addPass(
-                      createModuleToFunctionPassAdaptor(TAUInstrument()));
-                }); ## supposed to allow instrumentation in standard
-            optimisationi pipeline O3 but crashes build on LLVM V < 13 */
-            PB.registerPipelineParsingCallback(
-                [](StringRef Name, FunctionPassManager &FPM,
-                   ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "tau-prof") {
-                    FPM.addPass(TAUInstrument());
-                    errs() << "pass added\n";
-                    return true;
-                  }
-                  return false;
-                });
-            /*PB.registerShouldRunOptionalPassCallback(
-                [](StringRef Name, FunctionPassManager &FPM,
-                   ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "tau-prof") {
-                    FPM.addPass(TAUInstrument());
-                    errs() << "pass added\n";
-                    return true;
-                  }
-                  return false;
-                });*/
-          }};
-}
 
-extern "C" LLVM_ATTRIBUTE_WEAK ::llvm::PassPluginLibraryInfo LLVM_ATTRIBUTE_WEAK
-llvmGetPassPluginInfo() {
-  return getTAUInstrumentPluginInfo();
-}
-#endif
+
+static  clang::FrontendPluginRegistry::Add<PluginTAUInstrument> X("tau-prof", "TAU profiling");
 
 //----------------------------------------------------------------------------
 // Legacy PM Registration
@@ -550,8 +554,8 @@ llvmGetPassPluginInfo() {
 
 char LegacyTAUInstrument::ID = 0;
 
-static RegisterPass<LegacyTAUInstrument>
-    X("legacy-tau-prof", "Legacy TAU Profiling", false, false);
+//static RegisterPass<LegacyTAUInstrument>
+//    X("legacy-tau-prof", "Legacy TAU Profiling", false, false);
 // Automatically enable the pass.
 // http://adriansampson.net/blog/clangpass.html
 static void registerLegacyTAUInstrumentPass(const PassManagerBuilder &,

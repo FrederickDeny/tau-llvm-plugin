@@ -6,6 +6,9 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include "clang/Frontend/FrontendPluginRegistry.h"
+#include "clang/Frontend/CompilerInstance.h"
+
 using namespace llvm;
 
 namespace {
@@ -48,7 +51,7 @@ static cl::opt<bool>
               cl::desc("Don't actually instrument the code, just print "
                        "what would be instrumented"));
 
-struct TAUInstrument : public PassInfoMixin<TAUInstrument> {
+struct TAUInstrument : public PassInfoMixin<TAUInstrument>, public clang::ASTConsumer {
 
   StringSet<> funcsOfInterest;
   StringSet<> funcsExcl;
@@ -77,7 +80,7 @@ struct TAUInstrument : public PassInfoMixin<TAUInstrument> {
   void readUntilToken(std::ifstream &file, StringSet<> &vec,
                       std::vector<std::regex> &vecReg, const char *token);
 
-  TAUInstrument() {
+  TAUInstrument() /*:PassInfoMixin<TAUInstrument>() */{
     if (!TauInputFile.empty()) {
       std::ifstream ifile{TauInputFile};
       loadFunctionsFromFile(ifile);
@@ -105,3 +108,19 @@ struct LegacyTAUInstrument : public FunctionPass {
 };
 
 } // namespace
+
+class PluginTAUInstrument : public clang::PluginASTAction {
+protected:
+    std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &CI, StringRef file) {
+        return std::make_unique<TAUInstrument>();
+    }
+// Automatically run the plugin after the main AST action
+    PluginASTAction::ActionType getActionType() override {
+        return AddAfterMainAction;
+   }
+
+    bool ParseArgs(const clang::CompilerInstance &CI, const std::vector<std::string> &args) {
+        return true;
+    }
+};
+
