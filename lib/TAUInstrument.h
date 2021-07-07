@@ -74,8 +74,7 @@ struct TAUInstrument : public PassInfoMixin<TAUInstrument>, public clang::ASTCon
 
   void loadFunctionsFromFile(std::ifstream &file);
   bool maybeSaveForProfiling(Function &call);
-  bool regexFits(const StringRef &name, std::vector<std::regex> &regexList,
-                 bool cli = false);
+  bool regexFits(const StringRef &name, std::vector<std::regex> &regexList, bool cli = false);
   bool addInstrumentation(Function &func);
   void readUntilToken(std::ifstream &file, StringSet<> &vec,
                       std::vector<std::regex> &vecReg, const char *token);
@@ -111,15 +110,15 @@ struct LegacyTAUInstrument : public FunctionPass {
 
 class PluginTAUInstrument : public clang::PluginASTAction {
 protected:
-    std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &CI, StringRef file) {
+    std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(clang::CompilerInstance &CI, StringRef file) override{
         return std::make_unique<TAUInstrument>();
     }
 // Automatically run the plugin after the main AST action
-    PluginASTAction::ActionType getActionType() override {
+    PluginASTAction::ActionType getActionType() override{
         return AddAfterMainAction;
    }
 
-    bool ParseArgs(const clang::CompilerInstance &CI, const std::vector<std::string> &args) {
+    bool ParseArgs(const clang::CompilerInstance &CI, const std::vector<std::string> &args) override{
         return true;
     }
 };
