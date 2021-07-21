@@ -501,7 +501,7 @@ bool LegacyTAUInstrument::runOnFunction(Function &func) {
   return Changed;
 }
 
-#if (LLVM_VERSION_MAJOR > 6)
+#if (LLVM_VERSION_MAJOR > 11)
 PassPluginLibraryInfo getTAUInstrumentPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION, "tau-prof", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
